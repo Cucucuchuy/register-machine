@@ -33,8 +33,8 @@
 /// 
 /// == Jump ==
 ///         0000 0000 00XX XXXX 0000 0000 0000 0000
-///         |    |    ||        |              +---- register beggining
-/// cond ---+    |    ||        +----- immediate value beggining
+///         |    |    ||        |              +---- register beginning
+/// cond ---+    |    ||        +----- immediate value beginning
 /// code --------+    ||   
 /// imm  -------------+|   
 /// save --------------+   
