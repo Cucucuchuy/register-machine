@@ -83,6 +83,7 @@ mod inst {
         use std::marker::PhantomData as Boo;
         use super::*;
 
+        /* Core */
         pub struct Add; 
         pub struct Sub; 
 
@@ -93,18 +94,21 @@ mod inst {
         pub struct Orr; 
         pub struct Xor; 
 
-        pub trait Cin {}
+        pub trait Cin    {}
         impl Cin for Add {}
         impl Cin for Sub {}
 
-        pub trait Neg {}
+        pub trait Neg    {}
         impl Neg for Mul {}
         impl Neg for Div {}
 
-        pub trait Not {}
+        pub trait Not    {}
         impl Not for And {}
         impl Not for Orr {}
         impl Not for Xor {}
+
+        /* Aliases */
+        pub struct Mov;
 
         pub trait Build    { const CODE: Code; }
         impl Build for Add { const CODE: Code = Code::Add; }
@@ -141,7 +145,7 @@ mod inst {
 
         impl<O> Bin<O, Nil> {
             #[inline(always)]
-            pub const fn dst(self, dst: u8) -> Bin<O, Bit> {
+            pub const fn dst(self, dst: u8) -> Bin<O, Dst> {
                 Bin {
                     bit: self.bit,
                     dst,
@@ -209,9 +213,9 @@ mod inst {
 
         impl<O: Cin> Bin<O, Nil> {
             #[inline(always)]
-            pub const fn cin(self) -> Bin<Add, Bit> {
+            pub const fn cin(self, bit: bool) -> Bin<Add, Bit> {
                 Bin {
-                    bit: 1,
+                    bit: bit as u8,
                     dst: self.dst,
                     lhs: self.lhs,
                     rhs: self.rhs,
@@ -223,9 +227,9 @@ mod inst {
 
         impl<O: Neg> Bin<O, Nil> {
             #[inline(always)]
-            pub const fn neg(self) -> Bin<Mul, Bit> {
+            pub const fn neg(self, bit: bool) -> Bin<Mul, Bit> {
                 Bin {
-                    bit: 1,
+                    bit: bit as u8,
                     dst: self.dst,
                     lhs: self.lhs,
                     rhs: self.rhs,
@@ -237,9 +241,9 @@ mod inst {
 
         impl<O: Not> Bin<O, Nil> {
             #[inline(always)]
-            pub const fn not(self) -> Bin<And, Bit> { 
+            pub const fn not(self, bit: bool) -> Bin<And, Bit> { 
                 Bin {
-                    bit: 1,
+                    bit: bit as u8,
                     dst: self.dst,
                     lhs: self.lhs,
                     rhs: self.rhs,
@@ -282,6 +286,24 @@ mod inst {
             } 
         }
 
+
+        impl Bin<Mov, Nil> {
+            #[inline(always)]
+            pub const fn dst(self, dst: u8) -> Bin<Mov, Dst> {
+                Bin {
+                    bit: self.bit,
+                    dst,
+                    lhs: self.lhs,
+                    rhs: self.rhs,
+                    imm: self.imm,
+                    boo: Boo,
+                }
+            }
+        }
+
+        
+
+
         #[inline(always)] pub const fn add() -> Bin<Add, Nil> { Bin::new() }
         #[inline(always)] pub const fn sub() -> Bin<Sub, Nil> { Bin::new() }
         #[inline(always)] pub const fn mul() -> Bin<Mul, Nil> { Bin::new() }
@@ -289,6 +311,11 @@ mod inst {
         #[inline(always)] pub const fn and() -> Bin<And, Nil> { Bin::new() }
         #[inline(always)] pub const fn orr() -> Bin<Orr, Nil> { Bin::new() }
         #[inline(always)] pub const fn xor() -> Bin<Xor, Nil> { Bin::new() }
+
+        #[inline(always)]
+        pub const fn cmp() -> Bin<Sub, Dst> {
+            sub().dst(0)
+        }
     }
 
     #[repr(u8)]
