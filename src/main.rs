@@ -86,65 +86,70 @@ mod inst {
         pub struct Nil;
         pub struct Set;
 
-        pub struct Add<Dst, Lhs, Rhs, Imm> {
+        pub struct Add; pub struct Sub;
+        pub struct And; pub struct Orr;
+        pub struct Xor;
+
+        pub struct Bin<Ops, Dst, Lhs, Rhs, Imm> {
             dst: u8,
             lhs: u8,
             rhs: u8,
             imm: u16,
-            _pd: Boo<(Dst, Lhs, Rhs, Imm)>,
+            _pd: Boo<(Ops, Dst, Lhs, Rhs, Imm)>,
         }
-    
-        impl<Lhs, Rhs, Imm> Add<Nil, Lhs, Rhs, Imm> {
+
+        impl<Ops, Lhs, Rhs, Imm> Bin<Ops, Nil, Lhs, Rhs, Imm> {
             #[inline(always)]
-            pub const fn dst(self, dst: u8) -> Add<Set, Lhs, Rhs, Imm> {
-                Add {
+            pub const fn dst(self, dst: u8) -> Bin<Ops, Set, Lhs, Rhs, Imm> {
+                Bin {
                     dst,
                     lhs: self.lhs,
                     rhs: self.rhs,
                     imm: self.imm,
-                    _pd: Boo::<(Set, Lhs, Rhs, Imm)>,
+                    _pd: Boo::<(Ops, Set, Lhs, Rhs, Imm)>,
                 }
             }
         }
 
-        impl<Dst, Rhs, Imm> Add<Dst, Nil, Rhs, Imm> {
+        impl<Ops, Dst, Rhs, Imm> Bin<Ops, Dst, Nil, Rhs, Imm> {
             #[inline(always)]
-            pub const fn lhs(self, lhs: u8) -> Add<Dst, Set, Rhs, Imm> {
-                Add {
+            pub const fn lhs(self, lhs: u8) -> Bin<Ops, Dst, Set, Rhs, Imm> {
+                Bin {
                     dst: self.dst,
                     lhs,
                     rhs: self.rhs,
                     imm: self.imm,
-                    _pd: Boo::<(Dst, Set, Rhs, Imm)>,
+                    _pd: Boo::<(Ops, Dst, Set, Rhs, Imm)>,
                 }
             }
         }
-    
-        impl<Dst, Lhs> Add<Dst, Lhs, Nil, Nil> {
+
+        impl<Ops, Dst, Lhs> Bin<Ops, Dst, Lhs, Nil, Nil> {
             #[inline(always)]
-            pub const fn rhs(self, rhs: u8) -> Add<Dst, Lhs, Set, Nil> {
-                Add {
+            pub const fn rhs(self, rhs: u8) -> Bin<Ops, Dst, Lhs, Set, Nil> {
+                Bin {
                     dst: self.dst,
-                    lhs: self.rhs,
+                    lhs: self.lhs,
                     rhs,
                     imm: self.imm,
-                    _pd: Boo::<(Dst, Lhs, Set, Nil)>,
+                    _pd: Boo::<(Ops, Dst, Lhs, Set, Nil)>,
                 }
             }
-
+            
             #[inline(always)]
-            pub const fn imm(self, imm: u16) -> Add<Dst, Lhs, Nil, Set> {
-                Add {
+            pub const fn imm(self, imm: u16) -> Bin<Ops, Dst, Lhs, Nil, Set> {
+                Bin {
                     dst: self.dst,
                     lhs: self.lhs,
                     rhs: self.rhs,
                     imm,
-                    _pd: Boo::<(Dst, Lhs, Nil, Set)>,
+                    _pd: Boo::<(Ops, Dst, Lhs, Nil, Set)>,
                 }
             }
         }
     
-        impl Add<Set, Set, Set, Nil> {
+        // Register value
+        impl Bin<Add, Set, Set, Set, Nil> {
             #[inline(always)]
             pub fn build(self) -> Result<Inst, String> {
                 if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
@@ -155,31 +160,185 @@ mod inst {
                     ((Code::Add as u32) << 24) |
                     ((self.dst  as u32) << 16) |
                     ((self.lhs  as u32) << 12) |
-                    ((self.rhs  as u32) << 8) 
+                    ((self.rhs  as u32) <<  8)
                 ))
             }
-        }
+        } 
 
-        impl Add<Set, Set, Nil, Set> {
+        impl Bin<Sub, Set, Set, Set, Nil> {
             #[inline(always)]
             pub fn build(self) -> Result<Inst, String> {
                 if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
                 if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
-                if self.imm > 0x0FFF { return Err("imm value is out of bounds".to_string()); }
+                if self.rhs > 0x000F { return Err("rhs register is out of bounds".to_string()); }
 
                 Ok(Inst(
-                    (1 << 23)                  |
+                    ((Code::Sub as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.rhs  as u32) <<  8)
+                ))
+            }
+        } 
+
+        impl Bin<And, Set, Set, Set, Nil> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.rhs > 0x000F { return Err("rhs register is out of bounds".to_string()); }
+
+                Ok(Inst(
+                    ((Code::And as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.rhs  as u32) <<  8)
+                ))
+            }
+        } 
+
+        impl Bin<Orr, Set, Set, Set, Nil> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.rhs > 0x000F { return Err("rhs register is out of bounds".to_string()); }
+
+                Ok(Inst(
+                    ((Code::Orr as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.rhs  as u32) <<  8)
+                ))
+            }
+        } 
+
+        impl Bin<Xor, Set, Set, Set, Nil> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.rhs > 0x000F { return Err("rhs register is out of bounds".to_string()); }
+
+                Ok(Inst(
+                    ((Code::Xor as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.rhs  as u32) <<  8)
+                ))
+            }
+        } 
+
+        // Immediate value
+        impl Bin<Add, Set, Set, Nil, Set> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.imm > 0x0FFF { return Err("imm value is out of bounds".to_string());    }
+
+                Ok(Inst(
+                                     (1 << 23) |
                     ((Code::Add as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) | 
+                    ((self.imm  as u32))
+                ))
+            }
+        } 
+
+        impl Bin<Sub, Set, Set, Nil, Set> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.imm > 0x0FFF { return Err("imm value is out of bounds".to_string());    }
+
+                Ok(Inst(
+                                     (1 << 23) |
+                    ((Code::Sub as u32) << 24) |
                     ((self.dst  as u32) << 16) |
                     ((self.lhs  as u32) << 12) |
                     ((self.imm  as u32))
                 ))
             }
-        }
-    
-        pub const fn add() -> Add<Nil, Nil, Nil, Nil> {
-            Add { dst: 0, lhs: 0, rhs: 0, imm: 0, _pd: Boo }
         } 
+
+        impl Bin<And, Set, Set, Nil, Set> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.imm > 0x0FFF { return Err("imm value is out of bounds".to_string());    }
+
+                Ok(Inst(
+                                     (1 << 23) |
+                    ((Code::And as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.imm  as u32))
+                ))
+            }
+        } 
+
+        impl Bin<Orr, Set, Set, Nil, Set> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.imm > 0x0FFF { return Err("imm value is out of bounds".to_string());    }
+
+                Ok(Inst(
+                                     (1 << 23) |
+                    ((Code::Orr as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.imm  as u32))
+                ))
+            }
+        } 
+
+        impl Bin<Xor, Set, Set, Nil, Set> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.imm > 0x0FFF { return Err("imm value is out of bounds".to_string());    }
+
+                Ok(Inst(
+                                     (1 << 23) |
+                    ((Code::Xor as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.imm  as u32))
+                ))
+            }
+        } 
+
+        #[inline(always)]
+        pub const fn add() -> Bin<Add, Nil, Nil, Nil, Nil> {
+            Bin { dst: 0, lhs: 0, rhs: 0, imm: 0, _pd: Boo }
+        }
+
+        #[inline(always)]
+        pub const fn sub() -> Bin<Sub, Nil, Nil, Nil, Nil> {
+            Bin { dst: 0, lhs: 0, rhs: 0, imm: 0, _pd: Boo }
+        }
+
+        #[inline(always)]
+        pub const fn and() -> Bin<And, Nil, Nil, Nil, Nil> {
+            Bin { dst: 0, lhs: 0, rhs: 0, imm: 0, _pd: Boo }
+        }
+
+        #[inline(always)]
+        pub const fn orr() -> Bin<Orr, Nil, Nil, Nil, Nil> {
+            Bin { dst: 0, lhs: 0, rhs: 0, imm: 0, _pd: Boo }
+        }
+
+        #[inline(always)]
+        pub const fn xor() -> Bin<Xor, Nil, Nil, Nil, Nil> {
+            Bin { dst: 0, lhs: 0, rhs: 0, imm: 0, _pd: Boo }
+        }
     }
 
     #[repr(u8)]
@@ -342,6 +501,11 @@ mod inst {
         #[inline(always)]
         pub const fn code(&self) -> Code {
             Code::from_u8(((self.0 >> 24) & 0xF) as u8) 
+        }
+
+        #[inline(always)]
+        pub const fn into_bits(self) -> u32 {
+            self.0
         }
 
         #[inline(always)]
@@ -1202,6 +1366,10 @@ mod console {
 
                     match call.kind() {
                         Kind::Halt => (),
+                        Kind::PutC => todo!(),
+                        Kind::GetC => todo!(),
+                        Kind::PutS => todo!(),
+                        Kind::GetS => todo!(),
                     }
                 } 
 
@@ -1314,13 +1482,19 @@ mod console {
 
 fn main() {
     use console::{Rom, Console};
+    use inst::*;
 
     let code = [
-        0x06_C0_00_01,
-        0x07_CB_00_0A,
-        0x72_80_00_00,
-        0x00_00_00_00,
+        inst::orr().dst(1).lhs(0).imm(1).build().unwrap().into_bits(),
+        inst::orr().dst(2).lhs(0).imm(2).build().unwrap().into_bits(),
+        inst::orr().dst(3).lhs(0).imm(3).build().unwrap().into_bits(),
+        inst::orr().dst(4).lhs(0).imm(4).build().unwrap().into_bits(),
+        inst::add().dst(5).lhs(1).rhs(2).build().unwrap().into_bits(),
+        inst::add().dst(6).lhs(3).rhs(4).build().unwrap().into_bits(),
+        inst::add().dst(7).lhs(5).rhs(6).build().unwrap().into_bits(),
     ];
 
-    Console::new(&Rom::load(&code)).exec().dump();
+    let rom = Rom::load(&code);
+    rom.view();
+    Console::new(&rom).exec().dump();
 }
