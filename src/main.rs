@@ -1,69 +1,80 @@
-#![allow(unused)]
-
-/// TODO:
-/// 
-/// 
-/// I'd like to add other 'formats' of data
-/// like sprite sheets, sprites, audio, fonts, text
-/// to create a sort of fantasy console out of the vm
-/// 
-/// as well as loaders and external utilities that
-/// create and edit these formats
-/// 
-/// as well as an assembler to abstract over the instruction set
-/// maybe a debugger too
+#![allow(unused)] 
 
 /// === Instructions ===
 /// == System call ==
 ///         0000 0000 0000 0000 0000 0000 0000 0000
-/// cond ---+    |    |
-/// code --------+    |
-/// kind -------------+
+/// cond ---+    |    |    |    |    |    |    +----  4-bit value or bar register
+/// code --------+    |    |    |    |    +---------  8-bit value or foo register
+/// kind -------------+    |    |    +-------------- 12-bit value or rhs register
+///                        |    +------------------- 16-bit value or lhs register
+///                        +------------------------ 20-bit value or dst register
+/// 
+/// - not set in stone / completely arbitrary
+/// + which is why the arguments are as generic as possible
+/// 
+/// - for use by system calls to have a slightly more structured approach
+/// + then passing arguments in set registers, but it'll go back to that if neccessary
 /// =================
 /// 
 /// == Single Data Transfer ==
 ///         0000 0000 0000 0000 0000 0000 0000 0000
-/// cond ---+    |    |||| |    |    |    +----- offset multiplier register
-/// code --------+    |||| |    |    +---------- beginning of 12-bit offset or offset register      
-/// imm  -------------+||| |    +--------------- memory register        
-/// neg  --------------+|| +-------------------- desination register        
-/// byte ---------------++---------------------- sign flag, only used in load instruction
+/// cond ---+    |    |||| |    |    |    |    +---- unused in non-immediate mode
+/// code --------+    |||| |    |    |    +--------- offset multiplier register (soon to be deprecated)
+/// imm  -------------+||| |    |    +-------------- beginning of 12-bit offset or offset register      
+/// neg  --------------+|| |    +------------------- memory register        
+/// byte ---------------+| +------------------------ destination register        
+///                      +-------------------------- sign flag, only used in load instruction
 /// ==========================
 /// 
 /// == Multi Data Transfer ==
-///  - TODO
+///         0000 0000 0000 0000 0000 0000 0000 0000
+/// cond ---+    |    |
+/// code --------+    |
+/// imm  -------------+
+/// 
+/// - TODO
 /// =========================
+/// 
+/// == Stack operations ==
+///         0000 0000 0000 0000 0000 0000 0000 0000
+/// cond ---+    |    |
+/// code --------+    |
+/// imm  -------------+
+/// 
+/// - TODO
+/// ======================
 /// 
 /// == Math Operations ==
 ///         0000 0000 00XX 0000 0000 0000 0000 0000
-/// cond ---+    |    ||   |    |    +----------- beginning of 12-bit value or rhs register
-/// code --------+    ||   |    +---------------- left side operand register 
-/// imm  -------------+|   +--------------------- destination register  
-///                    +------- sign   flag (by mul/div)
-///                             carry  flag (by add/sub)
-///                             negate flag (by and/orr)
+/// cond ---+    |    ||   |    |    |    +--------- unused in non-immediate mode
+/// code --------+    ||   |    |    +-------------- beginning of 12-bit value or rhs register
+/// imm  -------------+|   |    +------------------- left side operand register 
+///                    |   +------------------------ destination register  
+///                    +------- sign flag (by mul/div)
+///                             cin  flag (by add/sub)
+///                             not  flag (by and/orr)
 /// =====================
 /// 
-/// == Jump ==
+/// == Jump operation ==
 ///         0000 0000 00XX XXXX 0000 0000 0000 0000
-///         |    |    ||        |              +---- register beginning
-/// cond ---+    |    ||        +----- immediate value beginning
-/// code --------+    ||   
+///         |    |    ||   |    |    +-------------- unused in non-immediate mode
+/// cond ---+    |    ||   |    +------------------- 16-bit address/offset or register address/offset
+/// code --------+    ||   +------------------------ base register
 /// imm  -------------+|   
 /// save --------------+   
 /// 
-/// imm set, save ip clear
-/// - absolute static branch
+/// - 0b0000 -- address in register, save off
+/// - dynamic branch
 /// 
-/// imm clear, save ip clear
-/// - absolute dynamic branch
+/// - 0b0001 -- address in register, save set
+/// - dynamic function call
 /// 
-/// imm set, save ip set
-/// - function call
+/// - 0b0010 -- address is immediate, save off
+/// - static branch
 /// 
-/// imm clear, save ip set
-/// - virtual function call
-/// ===============
+/// - 0b0011 -- address is immediate, save set
+/// - static function call
+/// ====================
 mod inst {
     use std::fmt::Display;
     pub use build::*;
@@ -228,6 +239,15 @@ mod inst {
     #[repr(u8)]
     #[derive(Clone, Copy)]
     pub enum Code {
+        // TODO: 
+        // Jmp table instrution
+        // Stack manipulation instructions
+        // Multi data instructions
+        // Add/Sub with carry operations
+        // And/Orr Not operations
+        // Mul/Div High value 
+        // Shift instruction
+
         Sys, // system call
         Ret, // ip = pop
         Jmp, // complicated
@@ -278,7 +298,11 @@ mod inst {
     #[repr(u8)]
     #[derive(Clone, Copy)]
     pub enum Kind {
-        Halt,
+        Halt, // Halt and exit program
+        PutC, // Put character
+        GetC, // Get character
+        PutS, // Put string
+        GetS, // Get string
     }   
 
     impl Kind {
@@ -297,6 +321,10 @@ mod inst {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
                 Kind::Halt => f.write_str("halt"),
+                Kind::PutC => f.write_str("putc"),
+                Kind::GetC => f.write_str("getc"),
+                Kind::PutS => f.write_str("puts"),
+                Kind::GetS => f.write_str("gets"),
             }
         }
     }
@@ -504,7 +532,7 @@ mod inst {
         // imm is false
         #[inline(always)]
         pub const fn reg(&self) -> usize {
-            (self.0 & 0xF) as usize
+            ((self.0 >> 16) & 0xF) as usize
         }
 
         // imm is true
@@ -522,8 +550,35 @@ mod inst {
         pub const fn kind(&self) -> Kind {
             Kind::from_u8(((self.0 >> 20) & 0xF) as u8)
         }
+
+        #[inline(always)]
+        pub const fn dst(&self) -> usize {
+            ((self.0 >> 16) & 0xF) as usize
+        }
+
+        pub const fn lhs(&self) -> usize {
+            ((self.0 >> 12) & 0xF) as usize
+        }
+
+        pub const fn rhs(&self) -> usize {
+            ((self.0 >> 8) & 0x4) as usize
+        }
+
+
+
     }
 }
+
+/// === Rom ===
+/// - Currently only stores instructions
+/// + and in their full format instead of a byte sequence
+/// 
+/// - hopefully later it'll be used for data segments,
+/// + constants, tables, etc.
+/// + that can be parsef by a loader into this struct
+/// 
+/// - Crucially this is READ-ONLY so I don't more self-modifying code :D
+/// ===========
 
 /// === Console ===
 /// === Condition Flags (CF) ===
@@ -534,29 +589,47 @@ mod inst {
 /// cout ------+ +------- trap
 /// ============================
 /// 
-/// == Registers ==
-/// R0..R9  - General purpose registers
+/// === Instruction Pointer (IP) ===
+/// - used to read instructions from rom
+/// ================================
+/// 
+/// === Registers ===
+/// == General purpose ==
+/// R0 .. R9
+/// 
+/// - TODO: Define a calling convention
 /// ===============
 ///
-/// === Stack Pointer (SP) ===
-/// - tracks stack space
-/// - conventionally used for function locals
-/// ==========================
-/// 
 /// === Zero Register (ZR) ===
-/// - always zero
-/// - when used as a destination, discards the result
+/// - when used as the destination register, discards the result
 /// ==========================
 /// 
 /// === High Register (HI) ===
-/// - stores overflowing half of multiplication
-/// - stores quotient of division
+/// - stores overflowing(high) half of multiplication
+/// - stores overflowing(high) half of division
 /// ==========================
 ///
 /// === Low Register (LO) ===
-/// - stores result (possibly wrapping) of multiplication
-/// - stores remainder of division
+/// - not used at the moment
+/// - deprecate?
 /// =========================
+/// 
+/// == Stack Pointer (SP) ==
+/// - tracks stack space
+/// - conventionally used for passing arguments 
+/// + and the return address for function calls
+/// ========================
+/// 
+/// == Memory Bank (MB) ==
+/// - not used yet, but here to float the idea of
+/// + accessing more than 64 KiB of memory
+/// 
+/// - swap either entire memory or a small chunk (4/8/16 KiB)
+/// - could be useful when adding MMIO and communicating with devices
+/// 
+/// - Gotta keep in mind to implement an instruction that can
+/// + copy memory between banks to make it useful
+/// ======================
 mod console {
     use crate::inst::*;
 
@@ -1240,8 +1313,14 @@ mod console {
 }
 
 fn main() {
-    use inst::*;
+    use console::{Rom, Console};
 
-    inst::build::add().dst(0).lhs(1).rhs(2).build();
-    inst::build::add().dst(0).lhs(1).imm(1).build();
+    let code = [
+        0x06_C0_00_01,
+        0x07_CB_00_0A,
+        0x72_80_00_00,
+        0x00_00_00_00,
+    ];
+
+    Console::new(&Rom::load(&code)).exec().dump();
 }
