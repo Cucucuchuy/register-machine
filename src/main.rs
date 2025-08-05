@@ -1,4 +1,17 @@
-#![allow(unused)] 
+#![allow(unused)]
+
+/// TODO:
+/// 
+/// 
+/// I'd like to add other 'formats' of data
+/// like sprite sheets, sprites, audio, fonts, text
+/// to create a sort of fantasy console out of the vm
+/// 
+/// as well as loaders and external utilities that
+/// create and edit these formats
+/// 
+/// as well as an assembler to abstract over the instruction set
+/// maybe a debugger too
 
 /// === Instructions ===
 /// == System call ==
@@ -53,6 +66,110 @@
 /// ===============
 mod inst {
     use std::fmt::Display;
+    pub use build::*;
+
+    pub mod build {
+        use std::marker::PhantomData as Boo;
+        use super::*;
+
+        pub struct Nil;
+        pub struct Set;
+
+        pub struct Add<Dst, Lhs, Rhs, Imm> {
+            dst: u8,
+            lhs: u8,
+            rhs: u8,
+            imm: u16,
+            _pd: Boo<(Dst, Lhs, Rhs, Imm)>,
+        }
+    
+        impl<Lhs, Rhs, Imm> Add<Nil, Lhs, Rhs, Imm> {
+            #[inline(always)]
+            pub const fn dst(self, dst: u8) -> Add<Set, Lhs, Rhs, Imm> {
+                Add {
+                    dst,
+                    lhs: self.lhs,
+                    rhs: self.rhs,
+                    imm: self.imm,
+                    _pd: Boo::<(Set, Lhs, Rhs, Imm)>,
+                }
+            }
+        }
+
+        impl<Dst, Rhs, Imm> Add<Dst, Nil, Rhs, Imm> {
+            #[inline(always)]
+            pub const fn lhs(self, lhs: u8) -> Add<Dst, Set, Rhs, Imm> {
+                Add {
+                    dst: self.dst,
+                    lhs,
+                    rhs: self.rhs,
+                    imm: self.imm,
+                    _pd: Boo::<(Dst, Set, Rhs, Imm)>,
+                }
+            }
+        }
+    
+        impl<Dst, Lhs> Add<Dst, Lhs, Nil, Nil> {
+            #[inline(always)]
+            pub const fn rhs(self, rhs: u8) -> Add<Dst, Lhs, Set, Nil> {
+                Add {
+                    dst: self.dst,
+                    lhs: self.rhs,
+                    rhs,
+                    imm: self.imm,
+                    _pd: Boo::<(Dst, Lhs, Set, Nil)>,
+                }
+            }
+
+            #[inline(always)]
+            pub const fn imm(self, imm: u16) -> Add<Dst, Lhs, Nil, Set> {
+                Add {
+                    dst: self.dst,
+                    lhs: self.lhs,
+                    rhs: self.rhs,
+                    imm,
+                    _pd: Boo::<(Dst, Lhs, Nil, Set)>,
+                }
+            }
+        }
+    
+        impl Add<Set, Set, Set, Nil> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.rhs > 0x000F { return Err("rhs register is out of bounds".to_string()); }
+
+                Ok(Inst(
+                    ((Code::Add as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.rhs  as u32) << 8) 
+                ))
+            }
+        }
+
+        impl Add<Set, Set, Nil, Set> {
+            #[inline(always)]
+            pub fn build(self) -> Result<Inst, String> {
+                if self.dst > 0x000F { return Err("dst register is out of bounds".to_string()); }
+                if self.lhs > 0x000F { return Err("lhs register is out of bounds".to_string()); }
+                if self.imm > 0x0FFF { return Err("imm value is out of bounds".to_string()); }
+
+                Ok(Inst(
+                    (1 << 23)                  |
+                    ((Code::Add as u32) << 24) |
+                    ((self.dst  as u32) << 16) |
+                    ((self.lhs  as u32) << 12) |
+                    ((self.imm  as u32))
+                ))
+            }
+        }
+    
+        pub const fn add() -> Add<Nil, Nil, Nil, Nil> {
+            Add { dst: 0, lhs: 0, rhs: 0, imm: 0, _pd: Boo }
+        } 
+    }
 
     #[repr(u8)]
     #[derive(Clone, Copy)]
@@ -1123,14 +1240,8 @@ mod console {
 }
 
 fn main() {
-    use console::{Rom, Console};
+    use inst::*;
 
-    let code = [
-        0x06_C0_00_01,
-        0x07_CB_00_0A,
-        0x72_80_00_00,
-        0x00_00_00_00,
-    ];
-
-    Console::new(&Rom::load(&code)).exec().dump();
+    inst::build::add().dst(0).lhs(1).rhs(2).build();
+    inst::build::add().dst(0).lhs(1).imm(1).build();
 }
