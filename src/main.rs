@@ -79,11 +79,10 @@ mod inst {
     use std::fmt::Display;
     pub use build::*;
 
-    pub mod build {
+    mod build {
         use std::marker::PhantomData as Boo;
         use super::*;
 
-        /* Core */
         pub struct Add; 
         pub struct Sub; 
 
@@ -106,9 +105,6 @@ mod inst {
         impl Not for And {}
         impl Not for Orr {}
         impl Not for Xor {}
-
-        /* Aliases */
-        pub struct Mov;
 
         pub trait Build    { const CODE: Code; }
         impl Build for Add { const CODE: Code = Code::Add; }
@@ -286,24 +282,6 @@ mod inst {
             } 
         }
 
-
-        impl Bin<Mov, Nil> {
-            #[inline(always)]
-            pub const fn dst(self, dst: u8) -> Bin<Mov, Dst> {
-                Bin {
-                    bit: self.bit,
-                    dst,
-                    lhs: self.lhs,
-                    rhs: self.rhs,
-                    imm: self.imm,
-                    boo: Boo,
-                }
-            }
-        }
-
-        
-
-
         #[inline(always)] pub const fn add() -> Bin<Add, Nil> { Bin::new() }
         #[inline(always)] pub const fn sub() -> Bin<Sub, Nil> { Bin::new() }
         #[inline(always)] pub const fn mul() -> Bin<Mul, Nil> { Bin::new() }
@@ -311,11 +289,6 @@ mod inst {
         #[inline(always)] pub const fn and() -> Bin<And, Nil> { Bin::new() }
         #[inline(always)] pub const fn orr() -> Bin<Orr, Nil> { Bin::new() }
         #[inline(always)] pub const fn xor() -> Bin<Xor, Nil> { Bin::new() }
-
-        #[inline(always)]
-        pub const fn cmp() -> Bin<Sub, Dst> {
-            sub().dst(0)
-        }
     }
 
     #[repr(u8)]
@@ -378,7 +351,7 @@ mod inst {
         // TODO: 
         // Jmp table instrution
         // Stack manipulation instructions
-        // Multi data instructions
+        // Multi inst instructions
         // Add/Sub with carry operations
         // And/Orr Not operations
         // Mul/Div High value 
@@ -466,8 +439,7 @@ mod inst {
     }
 
     #[repr(transparent)]
-    #[derive(Clone, Copy)]
-    pub struct Inst(u32);
+    pub struct Inst(pub u32);
 
     impl Inst {
         #[inline(always)]
@@ -481,232 +453,91 @@ mod inst {
         }
 
         #[inline(always)]
-        pub const fn into_bits(self) -> u32 {
-            self.0
-        }
-
-        #[inline(always)]
-        pub const fn into_data(self) -> Data {
-            Data(self.0)
-        }
-
-        #[inline(always)]
-        pub const fn into_math(self) -> Math {
-            Math(self.0)
-        }
-
-        #[inline(always)]
-        pub const fn into_jump(self) -> Jump {
-            Jump(self.0)
-        }
-    
-        #[inline(always)]
-        pub const fn into_call(self) -> Call {
-            Call(self.0)
-        }
-
-        #[inline(always)]
-        pub const fn from_u32(bytes: u32) -> Inst {
-            Inst(bytes)
-        }
-    }
-
-    impl Display for Inst {
-        // TODO: Make this accurate
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}{}", self.code(), self.cond());
-
-            match self.code() {
-                Code::Sys => write!(f, " {}", Call(self.0).kind()),
-                Code::Ret => Ok(()),
-                
-                Code::Jmp => {
-                    let jump = Jump(self.0);
-
-                    if jump.imm() {
-                        write!(f, " .{:04X}", jump.abs())
-                    } else {
-                        write!(f, " R{:X}", jump.reg()) 
-                    }
-                }
-
-                Code::Mov => {
-                    let math = Math(self.0);
-
-                    if math.imm() {
-                        write!(f, " R{:X}, #{}", math.dst(), math.val())
-                    } else {
-                        write!(f, " R{:X}, R{:X}", math.dst(), math.rhs())
-                    }
-                }
-
-                Code::Ldr | Code::Str => {
-                    let data = Data(self.0);
-
-                    let neg  = if data.neg()  { '-' } else { '+' };
-                    let sign = if data.sign() { '-' } else { ' ' };
-                    let byte = if data.byte() { 'b' } else { 'w' };
-
-                    if data.imm() {
-                        write!(f, " R{:X}, {sign}[R{:X} {neg} #{}]", data.dst(), data.mem(), data.val())
-                    } else {
-                        write!(f, " R{:X}, {sign}[R{:X} {neg} R{:X}]", data.dst(), data.mem(), data.off())
-                    }
-                }
-
-                Code::Add | Code::Sub |
-                Code::Mul | Code::Div |
-                Code::And | Code::Orr | Code::Xor => {
-                    let math = Math(self.0);
-
-                    if math.imm() {
-                        write!(f, " R{:X}, R{:X}, #{}", math.dst(), math.lhs(), math.val())
-                    } else {
-                        write!(f, " R{:X}, R{:X}, R{:X}", math.dst(), math.lhs(), math.rhs())
-                    }
-                }
-            }
-        }
-    }
-
-    #[repr(transparent)]
-    pub struct Data(u32);
-
-    impl Data {
-        #[inline(always)]
-        pub const fn imm(&self) -> bool {
-            ((self.0 >> 23) & 1) != 0 
-        }
-
-        #[inline(always)]
-        pub const fn neg(&self) -> bool {
-            ((self.0 >> 22) & 1) != 0 
-        }
-
-        #[inline(always)]
-        pub const fn byte(&self) -> bool {
-            ((self.0 >> 21) & 1) != 0 
-        }
-
-        #[inline(always)]
-        pub const fn sign(&self) -> bool {
-            ((self.0 >> 20) & 1) != 0
-        }
-
-        #[inline(always)]
-        pub const fn dst(&self) -> usize {
-            ((self.0 >> 16) & 0xF) as usize
-        }
-            
-        #[inline(always)]
-        pub const fn mem(&self) -> usize {
-            ((self.0 >> 12) & 0xF) as usize
-        }
-
-        // imm is false
-        #[inline(always)]
-        pub const fn off(&self) -> usize {
-            ((self.0 >> 8) & 0xF) as usize
-        }
-
-        #[inline(always)]
-        pub const fn mul(&self) -> usize {
-            ((self.0 >> 4) & 0xF) as usize
-        }
-
-        // imm is true
-        #[inline(always)]
-        pub const fn val(&self) -> u16 {
-            (self.0 & 0x0FFF) as u16
-        }
-    }
-
-    #[repr(transparent)]
-    pub struct Math(u32);
-
-    impl Math {
-        #[inline(always)]
-        pub const fn imm(&self) -> bool {
-            ((self.0 >> 23) & 1) != 0 
-        }
-
-        #[inline(always)]
-        pub const fn sign(&self) -> bool {
-            ((self.0 >> 22) & 1) != 0
-        }
-
-        #[inline(always)]
-        pub const fn dst(&self) -> usize {
-            ((self.0 >> 16) & 0xF) as usize
-        }
-            
-        #[inline(always)]
-        pub const fn lhs(&self) -> usize {
-            ((self.0 >> 12) & 0xF) as usize
-        }
-            
-        #[inline(always)] // imm is false
-        pub const fn rhs(&self) -> usize {
-            ((self.0 >> 8) & 0xF) as usize
-        }
-
-        #[inline(always)] // imm is true
-        pub const fn val(&self) -> u16 {
-            (self.0 & 0x0FFF) as u16
-        }
-    }
-
-    #[repr(transparent)]
-    pub struct Jump(u32);
-
-    impl Jump {
-        #[inline(always)]
-        pub const fn imm(&self) -> bool {
-            ((self.0 >> 23) & 1) != 0
-        }
-
-        #[inline(always)]
-        pub const fn save(&self) -> bool {
-            ((self.0 >> 22) & 1) != 0
-        }
-
-        // imm is false
-        #[inline(always)]
-        pub const fn reg(&self) -> usize {
-            ((self.0 >> 16) & 0xF) as usize
-        }
-
-        // imm is true
-        #[inline(always)]
-        pub const fn abs(&self) -> u16 {
-            (self.0 & 0xFFFF) as u16
-        }
-    }
-
-    #[repr(transparent)]
-    pub struct Call(u32);
-
-    impl Call {
-        #[inline(always)]
         pub const fn kind(&self) -> Kind {
             Kind::from_u8(((self.0 >> 20) & 0xF) as u8)
         }
 
         #[inline(always)]
-        pub const fn dst(&self) -> usize {
+        pub const fn bit_a(&self) -> bool {
+            ((self.0 >> 23) & 1) != 0
+        }
+
+        #[inline(always)]
+        pub const fn bit_b(&self) -> bool {
+            ((self.0 >> 22) & 1) != 0
+        }
+
+        #[inline(always)]
+        pub const fn bit_c(&self) -> bool {
+            ((self.0 >> 21) & 1) != 0
+        }
+
+        #[inline(always)]
+        pub const fn bit_d(&self) -> bool {
+            ((self.0 >> 20) & 1) != 0
+        }
+
+        #[inline(always)]
+        pub const fn reg_a(&self) -> usize {
             ((self.0 >> 16) & 0xF) as usize
         }
 
-        pub const fn lhs(&self) -> usize {
+        #[inline(always)]
+        pub const fn reg_b(&self) -> usize {
             ((self.0 >> 12) & 0xF) as usize
         }
 
-        pub const fn rhs(&self) -> usize {
-            ((self.0 >> 8) & 0x4) as usize
+        #[inline(always)]
+        pub const fn reg_c(&self) -> usize {
+            ((self.0 >> 8) & 0xF) as usize
         }
 
+        #[inline(always)]
+        pub const fn reg_d(&self) -> usize {
+            ((self.0 >> 4) & 0xF) as usize
+        }
 
+        #[inline(always)]
+        pub const fn reg_e(&self) -> usize {
+            (self.0 & 0xF) as usize
+        }
 
+        #[inline(always)]
+        pub const fn imm16(&self) -> u16 {
+            (self.0 & 0xFFFF) as u16
+        }
+
+        #[inline(always)]
+        pub const fn imm12(&self) -> u16 {
+            (self.0 & 0x0FFF) as u16
+        }
+
+        #[inline(always)]
+        pub const fn imm6h(&self) -> u16 {
+            (self.0 & 0x0FC0) as u16
+        }
+
+        #[inline(always)]
+        pub const fn imm6l(&self) -> u16 {
+            (self.0 & 0x003F) as u16
+        }
+
+        #[inline(always)]
+        pub const fn imm8(&self) -> u16 {
+            (self.0 & 0x00FF) as u16
+        }
+
+        #[inline(always)]
+        pub const fn imm4(&self) -> u16 {
+            (self.0 & 0x000F) as u16
+        }
+    }   
+
+    impl Display for Inst {
+        // TODO: Make this accurate
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            todo!()
+        }
     }
 }
 
@@ -714,7 +545,7 @@ mod inst {
 /// - Currently only stores instructions
 /// + and in their full format instead of a byte sequence
 /// 
-/// - hopefully later it'll be used for data segments,
+/// - hopefully later it'll be used for inst segments,
 /// + constants, tables, etc.
 /// + that can be parsef by a loader into this struct
 /// 
@@ -781,7 +612,7 @@ mod console {
     impl Rom {
         pub fn load(code: &[u32]) -> Rom {
             Rom {
-                code: code.iter().cloned().map(Inst::from_u32).collect()
+                code: code.iter().cloned().map(Inst).collect()
             }
         }
     
@@ -818,7 +649,7 @@ mod console {
 
         pub fn exec(&mut self) -> &mut Self {
             while (self.ip as usize) < self.rom.code.len() {
-                let inst = self.rom.code[self.ip as usize];
+                let inst = &self.rom.code[self.ip as usize];
                 self.ip += 1;
 
                 if !self.cond(inst.cond()) { continue; }
@@ -928,385 +759,385 @@ mod console {
 
         /* === Jump === */
         #[inline(always)]
-        const fn jmp_reg(&mut self, jump: Jump) {
-            self.ip = self.reg[jump.reg()];
+        const fn jmp_reg(&mut self, inst: &Inst) {
+            self.ip = self.reg[inst.reg_b()];
         }
 
         #[inline(always)]
-        const fn jmp_imm(&mut self, jump: Jump) {
-            self.ip = jump.abs();
+        const fn jmp_imm(&mut self, inst: &Inst) {
+            self.ip = inst.imm16();
         }
 
         #[inline(always)]
-        const fn jmp_reg_save(&mut self, jump: Jump) {
+        const fn jmp_reg_save(&mut self, inst: &Inst) {
             self.set16(self.reg[Self::SP], self.ip);
             self.reg[Self::SP] += 2;
 
-            self.ip = self.reg[jump.reg()];
+            self.ip = self.reg[inst.reg_b()];
         }
 
         #[inline(always)]
-        const fn jmp_imm_save(&mut self, jump: Jump) {
+        const fn jmp_imm_save(&mut self, inst: &Inst) {
             self.set16(self.reg[Self::SP], self.ip);
             self.reg[Self::SP] += 2;
 
-            self.ip = jump.abs();
+            self.ip = inst.imm16();
 
         }
 
-        /* === Single data transfer === */
+        /* === Single inst transfer === */
         #[inline(always)]
-        const fn ldr_reg_pos_u16(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_add(self.reg[data.mem()], off);
-            self.reg[data.dst()] = self.get16(idx);
+        const fn ldr_reg_pos_u16(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get16(idx);
         }
 
         #[inline(always)]
-        const fn ldr_reg_neg_u16(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_sub(self.reg[data.mem()], off);
-            self.reg[data.dst()] = self.get16(idx);
+        const fn ldr_reg_neg_u16(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get16(idx);
         }
 
         #[inline(always)]
-        const fn ldr_reg_pos_u8(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_add(self.reg[data.mem()], off);
-            self.reg[data.dst()] = self.get8(idx) as u16;
+        const fn ldr_reg_pos_u8(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get8(idx) as u16;
         }
 
         #[inline(always)]
-        const fn ldr_reg_pos_i8(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_add(self.reg[data.mem()], off);
-            self.reg[data.dst()] = self.get8(idx).cast_signed() as u16;
+        const fn ldr_reg_pos_i8(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
         }
 
         #[inline(always)]
-        const fn ldr_reg_neg_u8(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_sub(self.reg[data.mem()], off);
-            self.reg[data.dst()] = self.get8(idx) as u16;
+        const fn ldr_reg_neg_u8(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get8(idx) as u16;
         }
 
         #[inline(always)]
-        const fn ldr_reg_neg_i8(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_sub(self.reg[data.mem()], off);
-            self.reg[data.dst()] = self.get8(idx).cast_signed() as u16;
+        const fn ldr_reg_neg_i8(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
         }
 
         #[inline(always)]
-        const fn ldr_imm_pos_u16(&mut self, data: Data) {
-            let idx = u16::wrapping_add(self.reg[data.mem()], data.val());
-            self.reg[data.dst()] = self.get16(idx);
+        const fn ldr_imm_pos_u16(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get16(idx);
         }
 
         #[inline(always)]
-        const fn ldr_imm_neg_u16(&mut self, data: Data) {
-            let idx = u16::wrapping_sub(self.reg[data.mem()], data.val());
-            self.reg[data.dst()] = self.get16(idx);
+        const fn ldr_imm_neg_u16(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get16(idx);
         }
 
         #[inline(always)]
-        const fn ldr_imm_pos_u8(&mut self, data: Data) {
-            let idx = u16::wrapping_add(self.reg[data.mem()], data.val());
-            self.reg[data.dst()] = self.get8(idx) as u16;
+        const fn ldr_imm_pos_u8(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get8(idx) as u16;
         }
 
         #[inline(always)]
-        const fn ldr_imm_pos_i8(&mut self, data: Data) {
-            let idx = u16::wrapping_add(self.reg[data.mem()], data.val());
-            self.reg[data.dst()] = self.get8(idx).cast_signed() as u16;
+        const fn ldr_imm_pos_i8(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
         }
 
         #[inline(always)]
-        const fn ldr_imm_neg_u8(&mut self, data: Data) {
-            let idx = u16::wrapping_sub(self.reg[data.mem()], data.val());
-            self.reg[data.dst()] = self.get8(idx) as u16;
+        const fn ldr_imm_neg_u8(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get8(idx) as u16;
         }
 
         #[inline(always)]
-        const fn ldr_imm_neg_i8(&mut self, data: Data) {
-            let idx = u16::wrapping_sub(self.reg[data.mem()], data.val());
-            self.reg[data.dst()] = self.get8(idx).cast_signed() as u16;
+        const fn ldr_imm_neg_i8(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
         }
 
         #[inline(always)]
-        const fn str_reg_pos_u16(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_add(self.reg[data.mem()], off);
-            self.set16(idx, self.reg[data.dst()]);
+        const fn str_reg_pos_u16(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.set16(idx, self.reg[inst.reg_a()]);
         }   
 
         #[inline(always)]
-        const fn str_reg_neg_u16(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_sub(self.reg[data.mem()], off);
-            self.set16(idx, self.reg[data.dst()]);
+        const fn str_reg_neg_u16(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.set16(idx, self.reg[inst.reg_a()]);
         }
 
         #[inline(always)]
-        const fn str_reg_pos_u8(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_add(self.reg[data.mem()], off);
-            self.set8(idx, self.reg[data.dst()] as u8);
+        const fn str_reg_pos_u8(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.set8(idx, self.reg[inst.reg_a()] as u8);
         }
 
         #[inline(always)]
-        const fn str_reg_neg_u8(&mut self, data: Data) {
-            let off = u16::wrapping_mul(self.reg[data.off()], self.reg[data.mul()]);
-            let idx = u16::wrapping_sub(self.reg[data.mem()], off);
-            self.set8(idx, self.reg[data.dst()] as u8);
+        const fn str_reg_neg_u8(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.set8(idx, self.reg[inst.reg_a()] as u8);
         }
 
         #[inline(always)]
-        const fn str_imm_pos_u16(&mut self, data: Data) {
-            let idx = u16::wrapping_add(self.reg[data.mem()], data.val());
-            self.set16(idx, self.reg[data.dst()]);
+        const fn str_imm_pos_u16(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.set16(idx, self.reg[inst.reg_a()]);
         }
 
         #[inline(always)]
-        const fn str_imm_neg_u16(&mut self, data: Data) {
-            let idx = u16::wrapping_sub(self.reg[data.mem()], data.val());
-            self.set16(idx, self.reg[data.dst()]);
+        const fn str_imm_neg_u16(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.set16(idx, self.reg[inst.reg_a()]);
         }
 
         #[inline(always)]
-        const fn str_imm_pos_u8(&mut self, data: Data) {
-            let idx = u16::wrapping_add(self.reg[data.mem()], data.val());
-            self.set8(idx, self.reg[data.dst()] as u8);
+        const fn str_imm_pos_u8(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.set8(idx, self.reg[inst.reg_a()] as u8);
         }
 
         #[inline(always)]
-        const fn str_imm_neg_u8(&mut self, data: Data) {
-            let idx = u16::wrapping_sub(self.reg[data.mem()], data.val());
-            self.set8(idx, self.reg[data.dst()] as u8);
+        const fn str_imm_neg_u8(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.set8(idx, self.reg[inst.reg_a()] as u8);
         }
         
         /* === Math operations === */
         #[inline(always)]
-        const fn add_reg(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = self.reg[math.rhs()];
+        const fn add_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
 
             let (val, cout) = u16::overflowing_add(lhs, rhs);
             let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
 
             self.set_flags(val, sout, cout, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
 
         #[inline(always)]
-        const fn add_imm(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = math.val();
+        const fn add_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
 
             let (val, cout) = u16::overflowing_add(lhs, rhs);
             let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
 
             self.set_flags(val, sout, cout, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
         
         #[inline(always)]
-        const fn sub_reg(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = self.reg[math.rhs()];
+        const fn sub_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
 
             let (val, cout) = u16::overflowing_sub(lhs, rhs);
             let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
 
             self.set_flags(val, sout, cout, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
 
         #[inline(always)]
-        const fn sub_imm(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = math.val();
+        const fn sub_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
 
             let (val, cout) = u16::overflowing_sub(lhs, rhs);
             let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
 
             self.set_flags(val, sout, cout, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
         
         #[inline(always)]
-        const fn and_reg(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = self.reg[math.rhs()];
+        const fn and_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
             let val = lhs & rhs;
 
             self.set_flags(val, false, false, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
 
         #[inline(always)]
-        const fn and_imm(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = math.val();
+        const fn and_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
             let val = lhs & rhs;
 
             self.set_flags(val, false, false, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
         
         #[inline(always)]
-        const fn orr_reg(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = self.reg[math.rhs()];
+        const fn orr_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
             let val = lhs | rhs;
 
             self.set_flags(val, false, false, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
 
         #[inline(always)]
-        const fn orr_imm(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = math.val();
+        const fn orr_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
             let val = lhs | rhs;
 
             self.set_flags(val, false, false, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
         
         #[inline(always)]
-        const fn xor_reg(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = self.reg[math.rhs()];
+        const fn xor_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
             let val = lhs ^ rhs;
 
             self.set_flags(val, false, false, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
 
         #[inline(always)]
-        const fn xor_imm(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = math.val();
+        const fn xor_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
             let val = lhs ^ rhs;
 
             self.set_flags(val, false, false, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
         
         #[inline(always)]
-        const fn mul_reg_u16(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = self.reg[math.rhs()];
+        const fn mul_reg_u16(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
 
             let (val, cout) = u16::overflowing_mul(lhs, rhs);
 
             self.set_flags(val, cout, cout, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
 
         #[inline(always)]
-        const fn mul_reg_i16(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()] as i16;
-            let rhs = self.reg[math.rhs()] as i16;
+        const fn mul_reg_i16(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = self.reg[inst.reg_c()] as i16;
 
             let (val, sout) = i16::overflowing_mul(lhs, rhs);
 
             self.set_flags(val as u16, sout, false, false);
-            self.reg[math.dst()] = val as u16;
+            self.reg[inst.reg_a()] = val as u16;
         }
     
         #[inline(always)]
-        const fn mul_imm_u16(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = math.val();
+        const fn mul_imm_u16(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
 
             let (val, cout) = u16::overflowing_mul(lhs, rhs);
 
             self.set_flags(val, cout, cout, false);
-            self.reg[math.dst()] = val;
+            self.reg[inst.reg_a()] = val;
         }
 
         #[inline(always)]
-        const fn mul_imm_i16(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()] as i16;
-            let rhs = math.val() as i16;
+        const fn mul_imm_i16(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = inst.imm12() as i16;
 
             let (val, sout) = i16::overflowing_mul(lhs, rhs);
 
             self.set_flags(val as u16, sout, false, false);
-            self.reg[math.dst()] = val as u16;
+            self.reg[inst.reg_a()] = val as u16;
         }
     
         #[inline(always)]
-        const fn div_reg_u16(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = self.reg[math.rhs()];
+        const fn div_reg_u16(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
 
             match rhs {
                 0 => {
                     self.set_flags(0, false, false, true);
-                    self.reg[math.dst()] = 0;
+                    self.reg[inst.reg_a()] = 0;
                 }
 
                 rhs => {
                     let val = lhs / rhs;
 
                     self.set_flags(val, false, false, false);
-                    self.reg[math.dst()] = val;
+                    self.reg[inst.reg_a()] = val;
                 }
             }
         }
 
         #[inline(always)]
-        const fn div_reg_i16(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()] as i16;
-            let rhs = self.reg[math.rhs()] as i16;
+        const fn div_reg_i16(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = self.reg[inst.reg_c()] as i16;
 
             if rhs == 0 || (lhs == i16::MIN && rhs == -1) {
                 self.set_flags(0, false, false, true);
-                self.reg[math.dst()] = 0;
+                self.reg[inst.reg_a()] = 0;
             } else {
                 let val = (lhs / rhs) as u16;
 
                 self.set_flags(val, false, false, false);
-                self.reg[math.dst()] = val;
+                self.reg[inst.reg_a()] = val;
             }
         }
     
         #[inline(always)]
-        const fn div_imm_u16(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()];
-            let rhs = math.val();
+        const fn div_imm_u16(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
 
             match rhs {
                 0 => {
                     self.set_flags(0, false, false, true);
-                    self.reg[math.dst()] = 0;
+                    self.reg[inst.reg_a()] = 0;
                 }
 
                 rhs => {
                     let val = lhs / rhs;
 
                     self.set_flags(val, false, false, false);
-                    self.reg[math.dst()] = val;
+                    self.reg[inst.reg_a()] = val;
                 }
             }
         }
 
         #[inline(always)]
-        const fn div_imm_i16(&mut self, math: Math) {
-            let lhs = self.reg[math.lhs()] as i16;
-            let rhs = math.val() as i16;
+        const fn div_imm_i16(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = inst.imm12() as i16;
 
             if rhs == 0 || (lhs == i16::MIN && rhs == -1) {
                 self.set_flags(0, false, false, true);
-                self.reg[math.dst()] = 0;
+                self.reg[inst.reg_a()] = 0;
             } else {
                 let val = (lhs / rhs) as u16;
 
                 self.set_flags(val, false, false, false);
-                self.reg[math.dst()] = val;
+                self.reg[inst.reg_a()] = val;
             }
         }
     
@@ -1334,123 +1165,98 @@ mod console {
         }
 
         #[inline(always)]
-        fn step(&mut self, inst: Inst) {
+        fn step(&mut self, inst: &Inst) {
             self.reg[Self::ZR] = 0;
 
             match inst.code() {
-                Code::Sys => {
-                    let call = inst.into_call();
-
-                    match call.kind() {
-                        Kind::Halt => (),
-                        Kind::PutC => todo!(),
-                        Kind::GetC => todo!(),
-                        Kind::PutS => todo!(),
-                        Kind::GetS => todo!(),
-                    }
-                } 
+                Code::Sys => match inst.kind() {
+                    Kind::Halt => (),
+                    Kind::PutC => todo!(),
+                    Kind::GetC => todo!(),
+                    Kind::PutS => todo!(),
+                    Kind::GetS => todo!(),
+                }
 
                 Code::Ret => {
                     self.reg[Self::SP] -= 2;
                     self.ip = self.get16(self.reg[Self::SP]);
                 }
                 
-                Code::Jmp => {
-                    let jump = inst.into_jump();
-
-                    match (jump.imm(), jump.save()) {
-                        (false, false) => self.jmp_reg(jump),
-                        (true , false) => self.jmp_imm(jump),
-                        (false, true ) => self.jmp_reg_save(jump),
-                        (true , true ) => self.jmp_imm_save(jump),
-                    }
+                Code::Jmp => match (inst.bit_a(), inst.bit_b()) {
+                    (false, false) => self.jmp_reg(inst),
+                    (true , false) => self.jmp_imm(inst),
+                    (false, true ) => self.jmp_reg_save(inst),
+                    (true , true ) => self.jmp_imm_save(inst),
                 }
 
-                Code::Mov => {
-                    let math = inst.into_math();
-
-                    self.reg[math.dst()] = if math.imm() { math.val() } else { self.reg[math.rhs()] };
+                Code::Mov => match inst.bit_a() {
+                    true  => self.reg[inst.reg_a()] = inst.imm12(),
+                    false => self.reg[inst.reg_a()] = self.reg[inst.reg_b()],
                 }
                 
-                Code::Ldr => {
-                    let data = inst.into_data();
-                    
-                    match (data.imm(), data.neg(), data.byte(), data.sign()) {
-                        (false, false, false, _    ) => self.ldr_reg_pos_u16(data),
-                        (false, true , false, _    ) => self.ldr_reg_neg_u16(data),
-                        (false, false, true , false) => self.ldr_reg_pos_u8(data),
-                        (false, false, true , true ) => self.ldr_reg_pos_i8(data),
-                        (false, true , true , false) => self.ldr_reg_neg_u8(data),
-                        (false, true , true , true ) => self.ldr_reg_neg_i8(data),
-                        (true , false, false, _    ) => self.ldr_imm_pos_u16(data),
-                        (true , true , false, _    ) => self.ldr_imm_neg_u16(data),
-                        (true , false, true , false) => self.ldr_imm_pos_u8(data),
-                        (true , false, true , true ) => self.ldr_imm_pos_i8(data),
-                        (true , true , true , false) => self.ldr_imm_neg_u8(data),
-                        (true , true , true , true ) => self.ldr_imm_neg_i8(data),
-                    }
+                Code::Ldr => match (inst.bit_a(), inst.bit_b(), inst.bit_c(), inst.bit_d()) {
+                    (false, false, false, _    ) => self.ldr_reg_pos_u16(inst),
+                    (false, true , false, _    ) => self.ldr_reg_neg_u16(inst),
+                    (false, false, true , false) => self.ldr_reg_pos_u8(inst),
+                    (false, false, true , true ) => self.ldr_reg_pos_i8(inst),
+                    (false, true , true , false) => self.ldr_reg_neg_u8(inst),
+                    (false, true , true , true ) => self.ldr_reg_neg_i8(inst),
+                    (true , false, false, _    ) => self.ldr_imm_pos_u16(inst),
+                    (true , true , false, _    ) => self.ldr_imm_neg_u16(inst),
+                    (true , false, true , false) => self.ldr_imm_pos_u8(inst),
+                    (true , false, true , true ) => self.ldr_imm_pos_i8(inst),
+                    (true , true , true , false) => self.ldr_imm_neg_u8(inst),
+                    (true , true , true , true ) => self.ldr_imm_neg_i8(inst),
                 }
 
-                Code::Str => {
-                    let data = inst.into_data();
-
-                    match (data.imm(), data.neg(), data.byte()) {
-                        (false, false, false) => self.str_reg_pos_u16(data),
-                        (false, true , false) => self.str_reg_neg_u16(data),
-                        (false, false, true ) => self.str_reg_pos_u8(data),
-                        (false, true , true ) => self.str_reg_neg_u8(data),
-                        (true , false, false) => self.str_imm_pos_u16(data),
-                        (true , true , false) => self.str_imm_neg_u16(data),
-                        (true , false, true ) => self.str_imm_pos_u8(data),
-                        (true , true , true ) => self.str_imm_neg_u8(data),
-                    }
+                Code::Str => match (inst.bit_a(), inst.bit_b(), inst.bit_c()) {
+                    (false, false, false) => self.str_reg_pos_u16(inst),
+                    (false, true , false) => self.str_reg_neg_u16(inst),
+                    (false, false, true ) => self.str_reg_pos_u8(inst),
+                    (false, true , true ) => self.str_reg_neg_u8(inst),
+                    (true , false, false) => self.str_imm_pos_u16(inst),
+                    (true , true , false) => self.str_imm_neg_u16(inst),
+                    (true , false, true ) => self.str_imm_pos_u8(inst),
+                    (true , true , true ) => self.str_imm_neg_u8(inst),
+                }
+            
+                Code::Add => match inst.bit_a() {
+                    true  => self.add_imm(inst),
+                    false => self.add_reg(inst),
                 }
 
-                Code::Add => {
-                    let math = inst.into_math();
-                    if math.imm() { self.add_imm(math); } else { self.add_reg(math); }
+                Code::Sub => match inst.bit_a() {
+                    true  => self.sub_imm(inst),
+                    false => self.sub_reg(inst),
                 }
 
-                Code::Sub => {
-                    let math = inst.into_math();
-                    if math.imm() { self.sub_imm(math); } else { self.sub_reg(math); }
+                Code::And => match inst.bit_a() {
+                    true  => self.and_imm(inst),
+                    false => self.and_reg(inst),
                 }
 
-                Code::And => {
-                    let math = inst.into_math();
-                    if math.imm() { self.and_imm(math); } else { self.and_reg(math); }
+                Code::Orr => match inst.bit_a() {
+                    true  => self.orr_imm(inst),
+                    false => self.orr_reg(inst),
                 }
 
-                Code::Orr => {
-                    let math = inst.into_math();
-                    if math.imm() { self.orr_imm(math); } else { self.orr_reg(math); }
+                Code::Xor => match inst.bit_a() {
+                    true  => self.xor_imm(inst),
+                    false => self.xor_reg(inst),
                 }
 
-                Code::Xor => {
-                    let math = inst.into_math();
-                    if math.imm() { self.xor_imm(math); } else { self.xor_reg(math); }
+                Code::Mul => match (inst.bit_a(), inst.bit_b()) {
+                    (false, false) => self.mul_reg_u16(inst),
+                    (false, true)  => self.mul_reg_i16(inst),
+                    (true, false)  => self.mul_imm_u16(inst),
+                    (true, true)   => self.mul_imm_i16(inst),
                 }
-
-                Code::Mul => {
-                    let math = inst.into_math();
-
-                    match (math.imm(), math.sign()) {
-                        (false, false) => self.mul_reg_u16(math),
-                        (false, true)  => self.mul_reg_i16(math),
-                        (true, false)  => self.mul_imm_u16(math),
-                        (true, true)   => self.mul_imm_i16(math),
-                    }
-                }
-
-                Code::Div => {
-                    let math = inst.into_math();
-
-                    match (math.imm(), math.sign()) {
-                        (false, false) => self.div_reg_u16(math),
-                        (false, true)  => self.div_reg_i16(math),
-                        (true, false)  => self.div_imm_u16(math),
-                        (true, true)   => self.div_imm_i16(math),
-                    }
+                
+                Code::Div => match (inst.bit_a(), inst.bit_b()) {
+                    (false, false) => self.div_reg_u16(inst),
+                    (false, true)  => self.div_reg_i16(inst),
+                    (true, false)  => self.div_imm_u16(inst),
+                    (true, true)   => self.div_imm_i16(inst),
                 }
             }
         }
@@ -1458,7 +1264,5 @@ mod console {
 }
 
 fn main() {
-    use inst::*;
-
 
 }
