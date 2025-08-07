@@ -1,4 +1,5 @@
 #![allow(unused)] 
+#![feature(bigint_helper_methods)]
 
 /// === Instructions ===
 /// == System call ==
@@ -78,7 +79,8 @@
 mod inst {
     use std::fmt::Display;
     pub use build::*;
-
+    
+    // TODO: Complete builder methods
     mod build {
         use std::marker::PhantomData as Boo;
         use super::*;
@@ -106,14 +108,15 @@ mod inst {
         impl Not for Orr {}
         impl Not for Xor {}
 
+        // TODO: Fix builder methods
         pub trait Build    { const CODE: Code; }
-        impl Build for Add { const CODE: Code = Code::Add; }
-        impl Build for Sub { const CODE: Code = Code::Sub; }
-        impl Build for Mul { const CODE: Code = Code::Mul; }
-        impl Build for Div { const CODE: Code = Code::Div; }
-        impl Build for And { const CODE: Code = Code::And; }
-        impl Build for Orr { const CODE: Code = Code::Orr; }
-        impl Build for Xor { const CODE: Code = Code::Xor; }
+        // impl Build for Add { const CODE: Code = Code::Add; }
+        // impl Build for Sub { const CODE: Code = Code::Sub; }
+        // impl Build for Mul { const CODE: Code = Code::Mul; }
+        // impl Build for Div { const CODE: Code = Code::Div; }
+        // impl Build for And { const CODE: Code = Code::And; }
+        // impl Build for Orr { const CODE: Code = Code::Orr; }
+        // impl Build for Xor { const CODE: Code = Code::Xor; }
 
         /* States */
         pub struct Nil; /* -> Bit | Dst */
@@ -313,12 +316,12 @@ mod inst {
 
     impl Cond {
         #[inline(always)]
-        pub const fn into_u8(self) -> u8 {
+        pub const fn bits(self) -> u8 {
             self as u8
         }
 
         #[inline(always)]
-        pub const fn from_u8(byte: u8) -> Cond {
+        pub const fn from(byte: u8) -> Cond {
             unsafe { std::mem::transmute(byte) }
         }
     }
@@ -348,59 +351,99 @@ mod inst {
     #[repr(u8)]
     #[derive(Clone, Copy)]
     pub enum Code {
-        // TODO: 
-        // Jmp table instrution
-        // Stack manipulation instructions
-        // Multi inst instructions
-        // Add/Sub with carry operations
-        // And/Orr Not operations
-        // Mul/Div High value 
-        // Shift instruction
+        AddReg, AddRegSet,
+        AddImm, AddImmSet,
 
-        Sys, // system call
-        Ret, // ip = pop
-        Jmp, // complicated
-        Mov, // a = b
-        Ldr, // a = [b]
-        Str, // [b] = a
-        Add, // a = a + b
-        Sub, // a = a - b
-        Mul, // a = a * b
-        Div, // a = a / b
-        And, // a = a & b
-        Orr, // a = a | b
-        Xor, // a = a ^ b
+        AdcReg, AdcRegSet,
+        AdcImm, AdcImmSet,
+
+        SubReg, SubRegSet,
+        SubImm, SubImmSet,
+
+        SbcReg, SbcRegSet,
+        SbcImm, SbcImmSet,
+
+        MulReg, MulRegSet,
+        MulImm, MulImmSet,
+
+        MlsReg, MlsRegSet,
+        MlsImm, MlsImmSet,
+
+        DivReg, DivRegSet,
+        DivImm, DivImmSet,
+
+        DvsReg, DvsRegSet,
+        DvsImm, DvsImmSet,
+
+        AndReg, AndRegSet,
+        AndImm, AndImmSet,
+
+        AnxReg, AnxRegSet,
+        AnxImm, AnxImmSet,
+
+        OrrReg, OrrRegSet,
+        OrrImm, OrrImmSet,
+
+        OrxReg, OrxRegSet,
+        OrxImm, OrxImmSet,
+
+        XorReg, XorRegSet,
+        XorImm, XorImmSet,
+
+        XrxReg, XrxRegSet,
+        XrxImm, XrxImmSet,
+
+        BxtReg, BxtRegSet,
+        BxtImm, BxtImmSet,
+
+        LdhRegAddPos, LdhRegSubPos,
+        LdhImmAddPos, LdhImmSubPos,
+        
+        LdbRegAddPos, LdbRegAddNeg,
+        LdbRegSubPos, LdbRegSubNeg,
+        LdbImmAddPos, LdbImmAddNeg,
+        LdbImmSubPos, LdbImmSubNeg,
+
+        SthRegAdd,     SthRegSub,
+        SthImmAdd,     SthImmSub,
+        
+        StbRegAdd,    StbRegSub,
+        StbImmAdd,    StbImmSub,
+
+        PshRegAdd,    PshRegAddSet,
+        PshRegSub,    PshRegSubSet,
+
+        PshImmAdd,    PshImmAddSet,
+        PshImmSub,    PshImmSubSet,
+
+        PopRegAdd,    PopRegAddSet,
+        PopRegSub,    PopRegSubSet,
+
+        PopImmAdd,    PopImmAddSet,
+        PopImmSub,    PopImmSubSet,
+        
+        JmpRegAdd, JmpRegSub,
+        JmpImmAdd, JmpImmSub,
+
+        JmlRegAdd, JmlRegSub,
+        JmlImmAdd, JmlImmSub,
     }
 
     impl Code {
         #[inline(always)]
-        pub const fn into_u8(self) -> u8 {
+        pub const fn bits(self) -> u8 {
             self as u8
         }
 
         #[inline(always)]
-        pub const fn from_u8(byte: u8) -> Code {
+        pub const fn from(byte: u8) -> Code {
             unsafe { std::mem::transmute(byte) }
         }
     }
 
     impl Display for Code {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            match self {
-                Code::Sys => f.write_str("sys"),
-                Code::Ret => f.write_str("ret"),
-                Code::Jmp => f.write_str("jmp"),
-                Code::Mov => f.write_str("mov"),
-                Code::Ldr => f.write_str("ldr"),
-                Code::Str => f.write_str("str"),
-                Code::Add => f.write_str("add"),
-                Code::Sub => f.write_str("sub"),
-                Code::Mul => f.write_str("mul"),
-                Code::Div => f.write_str("div"),
-                Code::And => f.write_str("and"),
-                Code::Orr => f.write_str("orr"),
-                Code::Xor => f.write_str("xor"),
-            }
+            todo!()
         }
     }
 
@@ -416,12 +459,12 @@ mod inst {
 
     impl Kind {
         #[inline(always)]
-        pub const fn into_u8(self) -> u8 {
+        pub const fn bits(self) -> u8 {
             self as u8
         }
 
         #[inline(always)]
-        pub const fn from_u8(byte: u8) -> Kind {
+        pub const fn from(byte: u8) -> Kind {
             unsafe { std::mem::transmute(byte) }
         }
     }
@@ -444,17 +487,12 @@ mod inst {
     impl Inst {
         #[inline(always)]
         pub const fn cond(&self) -> Cond {
-            Cond::from_u8(((self.0 >> 28) & 0xF) as u8) 
+            Cond::from(((self.0 >> 28) & 0xF) as u8) 
         }
 
         #[inline(always)]
         pub const fn code(&self) -> Code {
-            Code::from_u8(((self.0 >> 24) & 0xF) as u8) 
-        }
-
-        #[inline(always)]
-        pub const fn kind(&self) -> Kind {
-            Kind::from_u8(((self.0 >> 20) & 0xF) as u8)
+            Code::from(((self.0 >> 24) & 0xF) as u8) 
         }
 
         #[inline(always)]
@@ -513,22 +551,22 @@ mod inst {
         }
 
         #[inline(always)]
-        pub const fn imm6h(&self) -> u16 {
-            (self.0 & 0x0FC0) as u16
-        }
-
-        #[inline(always)]
-        pub const fn imm6l(&self) -> u16 {
-            (self.0 & 0x003F) as u16
-        }
-
-        #[inline(always)]
         pub const fn imm8(&self) -> u16 {
             (self.0 & 0x00FF) as u16
         }
 
         #[inline(always)]
-        pub const fn imm4(&self) -> u16 {
+        pub const fn imm4h(&self) -> u16 {
+            ((self.0 & 0x0F00) >> 8) as u16
+        }
+
+        #[inline(always)]
+        pub const fn imm4m(&self) -> u16 {
+            ((self.0 & 0x00F0) >> 4) as u16
+        }
+
+        #[inline(always)]
+        pub const fn imm4l(&self) -> u16 {
             (self.0 & 0x000F) as u16
         }
     }   
@@ -603,6 +641,8 @@ mod inst {
 /// + copy memory between banks to make it useful
 /// ======================
 mod console {
+    use std::u16;
+
     use crate::inst::*;
 
     pub struct Rom {
@@ -757,182 +797,37 @@ mod console {
             self.mem[(idx + 3) as usize] = bytes[3];
         }
 
-        /* === Jump === */
-        #[inline(always)]
-        const fn jmp_reg(&mut self, inst: &Inst) {
-            self.ip = self.reg[inst.reg_b()];
-        }
-
-        #[inline(always)]
-        const fn jmp_imm(&mut self, inst: &Inst) {
-            self.ip = inst.imm16();
-        }
-
-        #[inline(always)]
-        const fn jmp_reg_save(&mut self, inst: &Inst) {
-            self.set16(self.reg[Self::SP], self.ip);
-            self.reg[Self::SP] += 2;
-
-            self.ip = self.reg[inst.reg_b()];
-        }
-
-        #[inline(always)]
-        const fn jmp_imm_save(&mut self, inst: &Inst) {
-            self.set16(self.reg[Self::SP], self.ip);
-            self.reg[Self::SP] += 2;
-
-            self.ip = inst.imm16();
-
-        }
-
-        /* === Single inst transfer === */
-        #[inline(always)]
-        const fn ldr_reg_pos_u16(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
-            self.reg[inst.reg_a()] = self.get16(idx);
-        }
-
-        #[inline(always)]
-        const fn ldr_reg_neg_u16(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
-            self.reg[inst.reg_a()] = self.get16(idx);
-        }
-
-        #[inline(always)]
-        const fn ldr_reg_pos_u8(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
-            self.reg[inst.reg_a()] = self.get8(idx) as u16;
-        }
-
-        #[inline(always)]
-        const fn ldr_reg_pos_i8(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
-            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
-        }
-
-        #[inline(always)]
-        const fn ldr_reg_neg_u8(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
-            self.reg[inst.reg_a()] = self.get8(idx) as u16;
-        }
-
-        #[inline(always)]
-        const fn ldr_reg_neg_i8(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
-            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
-        }
-
-        #[inline(always)]
-        const fn ldr_imm_pos_u16(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
-            self.reg[inst.reg_a()] = self.get16(idx);
-        }
-
-        #[inline(always)]
-        const fn ldr_imm_neg_u16(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
-            self.reg[inst.reg_a()] = self.get16(idx);
-        }
-
-        #[inline(always)]
-        const fn ldr_imm_pos_u8(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
-            self.reg[inst.reg_a()] = self.get8(idx) as u16;
-        }
-
-        #[inline(always)]
-        const fn ldr_imm_pos_i8(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
-            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
-        }
-
-        #[inline(always)]
-        const fn ldr_imm_neg_u8(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
-            self.reg[inst.reg_a()] = self.get8(idx) as u16;
-        }
-
-        #[inline(always)]
-        const fn ldr_imm_neg_i8(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
-            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
-        }
-
-        #[inline(always)]
-        const fn str_reg_pos_u16(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
-            self.set16(idx, self.reg[inst.reg_a()]);
-        }   
-
-        #[inline(always)]
-        const fn str_reg_neg_u16(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
-            self.set16(idx, self.reg[inst.reg_a()]);
-        }
-
-        #[inline(always)]
-        const fn str_reg_pos_u8(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
-            self.set8(idx, self.reg[inst.reg_a()] as u8);
-        }
-
-        #[inline(always)]
-        const fn str_reg_neg_u8(&mut self, inst: &Inst) {
-            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
-            self.set8(idx, self.reg[inst.reg_a()] as u8);
-        }
-
-        #[inline(always)]
-        const fn str_imm_pos_u16(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
-            self.set16(idx, self.reg[inst.reg_a()]);
-        }
-
-        #[inline(always)]
-        const fn str_imm_neg_u16(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
-            self.set16(idx, self.reg[inst.reg_a()]);
-        }
-
-        #[inline(always)]
-        const fn str_imm_pos_u8(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
-            self.set8(idx, self.reg[inst.reg_a()] as u8);
-        }
-
-        #[inline(always)]
-        const fn str_imm_neg_u8(&mut self, inst: &Inst) {
-            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
-            self.set8(idx, self.reg[inst.reg_a()] as u8);
-        }
-        
         /* === Math operations === */
         #[inline(always)]
         const fn add_reg(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = self.reg[inst.reg_c()];
-
-            let (val, cout) = u16::overflowing_add(lhs, rhs);
-            let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
-
-            self.set_flags(val, sout, cout, false);
-            self.reg[inst.reg_a()] = val;
+            self.reg[inst.reg_a()] = u16::wrapping_add(lhs, rhs);
         }
 
         #[inline(always)]
         const fn add_imm(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = u16::wrapping_add(lhs, rhs);
+        }
+        
+        #[inline(always)]
+        const fn add_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+
+            let (val, cout) = u16::overflowing_add(lhs, rhs);
+            let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
+
+            self.set_flags(val, sout, cout, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn add_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
 
             let (val, cout) = u16::overflowing_add(lhs, rhs);
             let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
@@ -941,22 +836,76 @@ mod console {
             self.reg[inst.reg_a()] = val;
         }
         
+
         #[inline(always)]
-        const fn sub_reg(&mut self, inst: &Inst) {
+        const fn adc_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            self.reg[inst.reg_a()] = u16::wrapping_add(lhs, rhs) + self.cout() as u16;
+        }
+
+        #[inline(always)]
+        const fn adc_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = u16::wrapping_add(lhs, rhs) + self.cout() as u16;
+        }
+        
+        #[inline(always)]
+        const fn adc_reg_set(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = self.reg[inst.reg_c()];
 
-            let (val, cout) = u16::overflowing_sub(lhs, rhs);
+            let (val, cout) = u16::carrying_add(lhs, rhs, self.cout());
             let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
 
             self.set_flags(val, sout, cout, false);
             self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn adc_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+
+            let (val, cout) = u16::carrying_add(lhs, rhs, self.cout());
+            let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
+
+            self.set_flags(val, sout, cout, false);
+            self.reg[inst.reg_a()] = val;
+        }
+        
+
+        #[inline(always)]
+        const fn sub_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            self.reg[inst.reg_a()] = u16::wrapping_sub(lhs, rhs);
         }
 
         #[inline(always)]
         const fn sub_imm(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = u16::wrapping_sub(lhs, rhs);
+        }
+        
+        #[inline(always)]
+        const fn sub_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+
+            let (val, cout) = u16::overflowing_sub(lhs, rhs);
+            let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
+
+            self.set_flags(val, sout, cout, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn sub_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
 
             let (val, cout) = u16::overflowing_sub(lhs, rhs);
             let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
@@ -965,48 +914,396 @@ mod console {
             self.reg[inst.reg_a()] = val;
         }
         
+
+        #[inline(always)]
+        const fn sbc_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            self.reg[inst.reg_a()] = u16::wrapping_sub(lhs, rhs) + self.cout() as u16 - 1;
+        }
+
+        #[inline(always)]
+        const fn sbc_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = u16::wrapping_sub(lhs, rhs) + self.cout() as u16 - 1;
+        }
+        
+        #[inline(always)]
+        const fn sbc_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+
+            let (val, cout) = u16::overflowing_sub(lhs, rhs + self.cout() as u16 - 1);
+            let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
+
+            self.set_flags(val, sout, cout, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn sbc_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+
+            let (val, cout) = u16::overflowing_sub(lhs, rhs + self.cout() as u16 - 1);
+            let sout = ((lhs ^ val) & (rhs ^ val)) & 0x8000 != 0;
+
+            self.set_flags(val, sout, cout, false);
+            self.reg[inst.reg_a()] = val;
+        }
+    
+
+        #[inline(always)]
+        const fn mul_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            self.reg[inst.reg_a()] = u16::wrapping_mul(lhs, rhs);
+        }
+
+        #[inline(always)]
+        const fn mul_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = u16::wrapping_mul(lhs, rhs);
+        }
+
+        #[inline(always)]
+        const fn mul_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+
+            let (val, cout) = u16::overflowing_mul(lhs, rhs);
+
+            self.set_flags(val, cout, cout, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn mul_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+
+            let (val, cout) = u16::overflowing_mul(lhs, rhs);
+
+            self.set_flags(val, cout, cout, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+
+        #[inline(always)]
+        const fn mls_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = self.reg[inst.reg_c()] as i16;
+            self.reg[inst.reg_a()] = i16::wrapping_mul(lhs, rhs) as u16;
+        }
+    
+        #[inline(always)]
+        const fn mls_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = inst.imm12() as i16;
+            self.reg[inst.reg_a()] = i16::wrapping_mul(lhs, rhs) as u16;
+        }
+    
+        #[inline(always)]
+        const fn mls_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = self.reg[inst.reg_c()] as i16;
+
+            let (val, sout) = i16::overflowing_mul(lhs, rhs);
+
+            self.set_flags(val as u16, sout, false, false);
+            self.reg[inst.reg_a()] = val as u16;
+        }
+    
+        #[inline(always)]
+        const fn mls_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = inst.imm12() as i16;
+
+            let (val, sout) = i16::overflowing_mul(lhs, rhs);
+
+            self.set_flags(val as u16, sout, false, false);
+            self.reg[inst.reg_a()] = val as u16;
+        }
+    
+
+        #[inline(always)]
+        const fn div_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+
+            self.reg[inst.reg_a()] = match rhs {
+                0 => 0,
+                rhs => lhs / rhs,
+            }
+        }
+
+        #[inline(always)]
+        const fn div_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            
+            self.reg[inst.reg_a()] = match rhs {
+                0 => 0,
+                rhs => lhs / rhs,
+            }
+        }
+
+        #[inline(always)]
+        const fn div_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+
+            match rhs {
+                0 => {
+                    self.set_flags(0, false, false, true);
+                    self.reg[inst.reg_a()] = 0;
+                }
+
+                rhs => {
+                    let val = lhs / rhs;
+
+                    self.set_flags(val, false, false, false);
+                    self.reg[inst.reg_a()] = val;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn div_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+
+            match rhs {
+                0 => {
+                    self.set_flags(0, false, false, true);
+                    self.reg[inst.reg_a()] = 0;
+                }
+
+                rhs => {
+                    let val = lhs / rhs;
+
+                    self.set_flags(val, false, false, false);
+                    self.reg[inst.reg_a()] = val;
+                }
+            }
+        }
+
+
+        #[inline(always)]
+        const fn dvs_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = self.reg[inst.reg_c()] as i16;
+
+            self.reg[inst.reg_a()] = if rhs == 0 || (lhs == i16::MIN && rhs == -1) {
+                0
+            } else {
+                (lhs / rhs) as u16
+            }
+        }
+    
+        #[inline(always)]
+        const fn dvs_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = inst.imm12() as i16;
+
+            self.reg[inst.reg_a()] = if rhs == 0 || (lhs == i16::MIN && rhs == -1) {
+                0
+            } else {
+                (lhs / rhs) as u16
+            }
+        }
+         
+        #[inline(always)]
+        const fn dvs_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = self.reg[inst.reg_c()] as i16;
+
+            if rhs == 0 || (lhs == i16::MIN && rhs == -1) {
+                self.set_flags(0, false, false, true);
+                self.reg[inst.reg_a()] = 0;
+            } else {
+                let val = (lhs / rhs) as u16;
+
+                self.set_flags(val, false, false, false);
+                self.reg[inst.reg_a()] = val;
+            }
+        }
+    
+        #[inline(always)]
+        const fn dvs_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()] as i16;
+            let rhs = inst.imm12() as i16;
+
+            if rhs == 0 || (lhs == i16::MIN && rhs == -1) {
+                self.set_flags(0, false, false, true);
+                self.reg[inst.reg_a()] = 0;
+            } else {
+                let val = (lhs / rhs) as u16;
+
+                self.set_flags(val, false, false, false);
+                self.reg[inst.reg_a()] = val;
+            }
+        }
+         
+
         #[inline(always)]
         const fn and_reg(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = self.reg[inst.reg_c()];
-            let val = lhs & rhs;
-
-            self.set_flags(val, false, false, false);
-            self.reg[inst.reg_a()] = val;
+            self.reg[inst.reg_a()] = lhs & rhs;
         }
 
         #[inline(always)]
         const fn and_imm(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = lhs & rhs;
+        }
+        
+        #[inline(always)]
+        const fn and_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            let val = lhs & rhs;
+
+            self.set_flags(val, false, false, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn and_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
             let val = lhs & rhs;
 
             self.set_flags(val, false, false, false);
             self.reg[inst.reg_a()] = val;
         }
         
+
+        #[inline(always)]
+        const fn anx_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            self.reg[inst.reg_a()] = lhs & !rhs;
+        }
+
+        #[inline(always)]
+        const fn anx_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = lhs & !rhs;
+        }
+        
+        #[inline(always)]
+        const fn anx_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            let val = lhs & !rhs;
+
+            self.set_flags(val, false, false, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn anx_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            let val = lhs & !rhs;
+
+            self.set_flags(val, false, false, false);
+            self.reg[inst.reg_a()] = val;
+        }
+        
+
         #[inline(always)]
         const fn orr_reg(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = self.reg[inst.reg_c()];
-            let val = lhs | rhs;
-
-            self.set_flags(val, false, false, false);
-            self.reg[inst.reg_a()] = val;
+            self.reg[inst.reg_a()] = lhs | rhs;
         }
 
         #[inline(always)]
         const fn orr_imm(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = lhs | rhs;
+        }
+        
+        #[inline(always)]
+        const fn orr_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            let val = lhs | rhs;
+
+            self.set_flags(val, false, false, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn orr_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
             let val = lhs | rhs;
 
             self.set_flags(val, false, false, false);
             self.reg[inst.reg_a()] = val;
         }
         
+
+        #[inline(always)]
+        const fn orx_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            self.reg[inst.reg_a()] = lhs | !rhs;
+        }
+
+        #[inline(always)]
+        const fn orx_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = lhs | !rhs;
+        }
+        
+        #[inline(always)]
+        const fn orx_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            let val = lhs | !rhs;
+
+            self.set_flags(val, false, false, false);
+            self.reg[inst.reg_a()] = val;
+        }
+
+        #[inline(always)]
+        const fn orx_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            let val = lhs | !rhs;
+
+            self.set_flags(val, false, false, false);
+            self.reg[inst.reg_a()] = val;
+        }
+        
+
         #[inline(always)]
         const fn xor_reg(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            self.reg[inst.reg_a()] = lhs ^ rhs;
+        }
+
+        #[inline(always)]
+        const fn xor_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = lhs ^ rhs;
+        }
+        
+        #[inline(always)]
+        const fn xor_reg_set(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = self.reg[inst.reg_c()];
             let val = lhs ^ rhs;
@@ -1016,7 +1313,7 @@ mod console {
         }
 
         #[inline(always)]
-        const fn xor_imm(&mut self, inst: &Inst) {
+        const fn xor_imm_set(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = inst.imm12();
             let val = lhs ^ rhs;
@@ -1025,122 +1322,523 @@ mod console {
             self.reg[inst.reg_a()] = val;
         }
         
+        
         #[inline(always)]
-        const fn mul_reg_u16(&mut self, inst: &Inst) {
+        const fn xrx_reg(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = self.reg[inst.reg_c()];
+            self.reg[inst.reg_a()] = lhs ^ !rhs;
+        }
 
-            let (val, cout) = u16::overflowing_mul(lhs, rhs);
+        #[inline(always)]
+        const fn xrx_imm(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = inst.imm12();
+            self.reg[inst.reg_a()] = lhs ^ !rhs;
+        }
+        
+        #[inline(always)]
+        const fn xrx_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            let val = lhs ^ !rhs;
 
-            self.set_flags(val, cout, cout, false);
+            self.set_flags(val, false, false, false);
             self.reg[inst.reg_a()] = val;
         }
 
         #[inline(always)]
-        const fn mul_reg_i16(&mut self, inst: &Inst) {
-            let lhs = self.reg[inst.reg_b()] as i16;
-            let rhs = self.reg[inst.reg_c()] as i16;
-
-            let (val, sout) = i16::overflowing_mul(lhs, rhs);
-
-            self.set_flags(val as u16, sout, false, false);
-            self.reg[inst.reg_a()] = val as u16;
-        }
-    
-        #[inline(always)]
-        const fn mul_imm_u16(&mut self, inst: &Inst) {
+        const fn xrx_imm_set(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = inst.imm12();
+            let val = lhs ^ !rhs;
 
-            let (val, cout) = u16::overflowing_mul(lhs, rhs);
-
-            self.set_flags(val, cout, cout, false);
+            self.set_flags(val, false, false, false);
             self.reg[inst.reg_a()] = val;
         }
+        
 
         #[inline(always)]
-        const fn mul_imm_i16(&mut self, inst: &Inst) {
-            let lhs = self.reg[inst.reg_b()] as i16;
-            let rhs = inst.imm12() as i16;
-
-            let (val, sout) = i16::overflowing_mul(lhs, rhs);
-
-            self.set_flags(val as u16, sout, false, false);
-            self.reg[inst.reg_a()] = val as u16;
-        }
-    
-        #[inline(always)]
-        const fn div_reg_u16(&mut self, inst: &Inst) {
+        const fn bxt_reg(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
             let rhs = self.reg[inst.reg_c()];
-
-            match rhs {
-                0 => {
-                    self.set_flags(0, false, false, true);
-                    self.reg[inst.reg_a()] = 0;
-                }
-
-                rhs => {
-                    let val = lhs / rhs;
-
-                    self.set_flags(val, false, false, false);
-                    self.reg[inst.reg_a()] = val;
-                }
-            }
+            let lsl = (rhs & 0x0F00) >> 8;
+            let beg = (rhs & 0x00F0) >> 4;
+            let end = (rhs & 0x000F);
+            
+            let mask = (0xFFFF >> beg) & (0xFFF << end);
+            self.reg[inst.reg_a()] = (lhs & mask) >> lsl;
         }
 
         #[inline(always)]
-        const fn div_reg_i16(&mut self, inst: &Inst) {
-            let lhs = self.reg[inst.reg_b()] as i16;
-            let rhs = self.reg[inst.reg_c()] as i16;
-
-            if rhs == 0 || (lhs == i16::MIN && rhs == -1) {
-                self.set_flags(0, false, false, true);
-                self.reg[inst.reg_a()] = 0;
-            } else {
-                let val = (lhs / rhs) as u16;
-
-                self.set_flags(val, false, false, false);
-                self.reg[inst.reg_a()] = val;
-            }
-        }
-    
-        #[inline(always)]
-        const fn div_imm_u16(&mut self, inst: &Inst) {
+        const fn bxt_imm(&mut self, inst: &Inst) {
             let lhs = self.reg[inst.reg_b()];
-            let rhs = inst.imm12();
+            let lsl = inst.imm4h();
+            let beg = inst.imm4m();
+            let end = inst.imm4l();
 
-            match rhs {
-                0 => {
-                    self.set_flags(0, false, false, true);
-                    self.reg[inst.reg_a()] = 0;
-                }
+            let mask = (0xFFFF >> beg) & (0xFFF << end);
+            self.reg[inst.reg_a()] = (lhs & mask) >> lsl;
+        }
 
-                rhs => {
-                    let val = lhs / rhs;
+        #[inline(always)]
+        const fn bxt_reg_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let rhs = self.reg[inst.reg_c()];
+            let lsl = (rhs & 0x0F00) >> 8;
+            let beg = (rhs & 0x00F0) >> 4;
+            let end = (rhs & 0x000F);
+            
+            let mask = (0xFFFF >> beg) & (0xFFF << end);
+            self.reg[inst.reg_a()] = (lhs & mask) >> lsl;
+        }
 
-                    self.set_flags(val, false, false, false);
-                    self.reg[inst.reg_a()] = val;
+        #[inline(always)]
+        const fn bxt_imm_set(&mut self, inst: &Inst) {
+            let lhs = self.reg[inst.reg_b()];
+            let lsl = inst.imm4h();
+            let beg = inst.imm4h();
+            let end = inst.imm4l();
+
+            let mask = (0xFFFF >> beg) & (0xFFF << end);
+            self.reg[inst.reg_a()] = (lhs & mask) >> lsl;
+        }
+
+        /* === Single inst transfer === */
+        #[inline(always)]
+        const fn ldh_reg_add_pos(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get16(idx);
+        }
+
+        #[inline(always)]
+        const fn ldh_reg_sub_pos(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get16(idx);
+        }
+
+        #[inline(always)]
+        const fn ldh_imm_add_pos(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get16(idx);
+        }
+
+        #[inline(always)]
+        const fn ldh_imm_sub_pos(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get16(idx);
+        }
+
+
+        #[inline(always)]
+        const fn ldb_reg_add_pos(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get8(idx) as u16;
+        }
+
+        #[inline(always)]
+        const fn ldb_reg_add_neg(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
+        }
+
+        #[inline(always)]
+        const fn ldb_reg_sub_pos(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get8(idx) as u16;
+        }
+
+        #[inline(always)]
+        const fn ldb_reg_sub_neg(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
+        }
+
+        #[inline(always)]
+        const fn ldb_imm_add_pos(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get8(idx) as u16;
+        }
+
+        #[inline(always)]
+        const fn ldb_imm_add_neg(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
+        }
+
+        #[inline(always)]
+        const fn ldb_imm_sub_pos(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get8(idx) as u16;
+        }
+
+        #[inline(always)]
+        const fn ldb_imm_sub_neg(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.reg[inst.reg_a()] = self.get8(idx).cast_signed() as u16;
+        }
+
+
+        #[inline(always)]
+        const fn sth_reg_add(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.set16(idx, self.reg[inst.reg_a()]);
+        }   
+
+        #[inline(always)]
+        const fn sth_reg_sub(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.set16(idx, self.reg[inst.reg_a()]);
+        }
+
+        #[inline(always)]
+        const fn sth_imm_add(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.set16(idx, self.reg[inst.reg_a()]);
+        }
+
+        #[inline(always)]
+        const fn sth_imm_sub(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.set16(idx, self.reg[inst.reg_a()]);
+        }
+
+
+        #[inline(always)]
+        const fn stb_reg_add(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], off);
+            self.set8(idx, self.reg[inst.reg_a()] as u8);
+        }
+
+        #[inline(always)]
+        const fn stb_reg_sub(&mut self, inst: &Inst) {
+            let off = u16::wrapping_mul(self.reg[inst.reg_c()], self.reg[inst.reg_d()]);
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], off);
+            self.set8(idx, self.reg[inst.reg_a()] as u8);
+        }
+
+        #[inline(always)]
+        const fn stb_imm_add(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_add(self.reg[inst.reg_b()], inst.imm12());
+            self.set8(idx, self.reg[inst.reg_a()] as u8);
+        }
+
+        #[inline(always)]
+        const fn stb_imm_sub(&mut self, inst: &Inst) {
+            let idx = u16::wrapping_sub(self.reg[inst.reg_b()], inst.imm12());
+            self.set8(idx, self.reg[inst.reg_a()] as u8);
+        }
+        
+        /* === Stack operations === */
+        #[inline(always)]
+        const fn psh_reg_add(&mut self, inst: &Inst) {
+            let mut idx = self.reg[inst.reg_a()];
+            let list = self.reg[inst.reg_b()];
+
+            let mut i = 0;
+            while i > 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.set16(idx, self.reg[i]);
+                    idx += 2;
                 }
             }
         }
 
         #[inline(always)]
-        const fn div_imm_i16(&mut self, inst: &Inst) {
-            let lhs = self.reg[inst.reg_b()] as i16;
-            let rhs = inst.imm12() as i16;
+        const fn psh_reg_sub(&mut self, inst: &Inst) {
+            let mut idx = self.reg[inst.reg_a()];
+            let list = self.reg[inst.reg_b()];
 
-            if rhs == 0 || (lhs == i16::MIN && rhs == -1) {
-                self.set_flags(0, false, false, true);
-                self.reg[inst.reg_a()] = 0;
-            } else {
-                let val = (lhs / rhs) as u16;
-
-                self.set_flags(val, false, false, false);
-                self.reg[inst.reg_a()] = val;
+            let mut i = 0;
+            while i > 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.set16(idx, self.reg[i]);
+                    idx -= 2;
+                }
             }
         }
-    
+
+        #[inline(always)]
+        const fn psh_imm_add(&mut self, inst: &Inst) {
+            let mut idx = self.reg[inst.reg_a()];
+            let list = inst.imm16();
+
+            let mut i = 0;
+            while i > 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.set16(idx, self.reg[i]);
+                    idx += 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn psh_imm_sub(&mut self, inst: &Inst) {
+            let mut idx = self.reg[inst.reg_a()];
+            let list = inst.imm16();
+
+            let mut i = 0;
+            while i > 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.set16(idx, self.reg[i]);
+                    idx -= 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn psh_reg_add_set(&mut self, inst: &Inst) {
+            let mut idx = self.reg[inst.reg_a()];
+            let list = self.reg[inst.reg_b()];
+
+            let mut i = 0;
+            while i > 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.set16(idx, self.reg[i]);
+                    idx += 2;
+                }
+            }
+
+            self.reg[inst.reg_a()] = idx;
+        }
+
+        #[inline(always)]
+        const fn psh_reg_sub_set(&mut self, inst: &Inst) {
+            let mut idx = self.reg[inst.reg_a()];
+            let list = self.reg[inst.reg_b()];
+
+            let mut i = 0;
+            while i > 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.set16(idx, self.reg[i]);
+                    idx -= 2;
+                }
+            }
+
+            self.reg[inst.reg_a()] = idx;
+        }
+
+        #[inline(always)]
+        const fn psh_imm_add_set(&mut self, inst: &Inst) {
+            let mut idx = self.reg[inst.reg_a()];
+            let list = inst.imm16();
+
+            let mut i = 0;
+            while i > 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.set16(idx, self.reg[i]);
+                    idx += 2;
+                }
+            }
+
+            self.reg[inst.reg_a()] = idx;
+        }
+
+        #[inline(always)]
+        const fn psh_imm_sub_set(&mut self, inst: &Inst) {
+            let mut idx = self.reg[inst.reg_a()];
+            let list = inst.imm16();
+
+            let mut i = 0;
+            while i > 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.set16(idx, self.reg[i]);
+                    idx -= 2;
+                }
+            }
+
+            self.reg[inst.reg_a()] = idx;
+        }
+
+
+        #[inline(always)]
+        const fn pop_reg_add(&mut self, inst: &Inst) {
+            let mut idx  = self.reg[inst.reg_a()];
+            let list = self.reg[inst.reg_b()];
+
+            let mut i = 0;
+            while i < 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.reg[i] = self.get16(idx);
+                    idx += 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn pop_reg_sub(&mut self, inst: &Inst) {
+            let mut idx  = self.reg[inst.reg_a()];
+            let list = self.reg[inst.reg_b()];
+
+            let mut i = 0;
+            while i < 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.reg[i] = self.get16(idx);
+                    idx -= 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn pop_imm_add(&mut self, inst: &Inst) {
+            let mut idx  = self.reg[inst.reg_a()];
+            let list = inst.imm16();
+
+            let mut i = 0;
+            while i < 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.reg[i] = self.get16(idx);
+                    idx += 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn pop_imm_sub(&mut self, inst: &Inst) {
+            let mut idx  = self.reg[inst.reg_a()];
+            let list = inst.imm16();
+
+            let mut i = 0;
+            while i < 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.reg[i] = self.get16(idx);
+                    idx -= 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn pop_reg_add_set(&mut self, inst: &Inst) {
+            let mut idx  = self.reg[inst.reg_a()];
+            let list = self.reg[inst.reg_b()];
+
+            let mut i = 0;
+            while i < 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.reg[i] = self.get16(idx);
+                    idx += 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn pop_reg_sub_set(&mut self, inst: &Inst) {
+            let mut idx  = self.reg[inst.reg_a()];
+            let list = self.reg[inst.reg_b()];
+
+            let mut i = 0;
+            while i < 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.reg[i] = self.get16(idx);
+                    idx -= 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn pop_imm_add_set(&mut self, inst: &Inst) {
+            let mut idx  = self.reg[inst.reg_a()];
+            let list = inst.imm16();
+
+            let mut i = 0;
+            while i < 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.reg[i] = self.get16(idx);
+                    idx += 2;
+                }
+            }
+        }
+
+        #[inline(always)]
+        const fn pop_imm_sub_set(&mut self, inst: &Inst) {
+            let mut idx  = self.reg[inst.reg_a()];
+            let list = inst.imm16();
+
+            let mut i = 0;
+            while i < 16 {
+                if ((list >> i) & 1) != 0 {
+                    self.reg[i] = self.get16(idx);
+                    idx -= 2;
+                }
+            }
+        }
+
+        /* === Jump operations === */
+        #[inline(always)]
+        const fn jmp_reg_add(&mut self, inst: &Inst) {
+            let off = self.reg[inst.reg_a()];
+            let mem = self.reg[inst.reg_b()];
+            self.ip = u16::wrapping_add(mem, off);
+        }
+
+        #[inline(always)]
+        const fn jmp_reg_sub(&mut self, inst: &Inst) {
+            let off = self.reg[inst.reg_a()];
+            let mem = self.reg[inst.reg_b()];
+            self.ip = u16::wrapping_sub(mem, off);
+        }
+
+        #[inline(always)]
+        const fn jmp_imm_add(&mut self, inst: &Inst) {
+            let off = self.reg[inst.reg_a()];
+            let mem = inst.imm16();
+            self.ip = u16::wrapping_add(mem, off);
+        }
+
+        #[inline(always)]
+        const fn jmp_imm_sub(&mut self, inst: &Inst) {
+            let off = self.reg[inst.reg_a()];
+            let mem = inst.imm16();
+            self.ip = u16::wrapping_sub(mem, off);
+        }
+
+
+        #[inline(always)]
+        const fn jml_reg_add(&mut self, inst: &Inst) {
+            let off = self.reg[inst.reg_a()];
+            let mem = self.reg[inst.reg_b()];
+
+            self.reg[inst.reg_a()] = self.ip;
+            self.ip = u16::wrapping_add(mem, off);
+        }
+
+        #[inline(always)]
+        const fn jml_reg_sub(&mut self, inst: &Inst) {
+            let off = self.reg[inst.reg_a()];
+            let mem = self.reg[inst.reg_b()];
+            
+            self.reg[inst.reg_a()] = self.ip;
+            self.ip = u16::wrapping_sub(mem, off);
+        }
+
+        #[inline(always)]
+        const fn jml_imm_add(&mut self, inst: &Inst) {
+            let off = self.reg[inst.reg_a()];
+            let mem = inst.imm16();
+            
+            self.reg[inst.reg_a()] = self.ip;
+            self.ip = u16::wrapping_add(mem, off);
+        }
+
+        #[inline(always)]
+        const fn jml_imm_sub(&mut self, inst: &Inst) {
+            let off = self.reg[inst.reg_a()];
+            let mem = inst.imm16();
+            
+            self.reg[inst.reg_a()] = self.ip;
+            self.ip = u16::wrapping_sub(mem, off);
+        }
+
+
         /* === Instruction Decoding */
         #[inline(always)]
         const fn cond(&self, cond: Cond) -> bool {
@@ -1169,95 +1867,132 @@ mod console {
             self.reg[Self::ZR] = 0;
 
             match inst.code() {
-                Code::Sys => match inst.kind() {
-                    Kind::Halt => (),
-                    Kind::PutC => todo!(),
-                    Kind::GetC => todo!(),
-                    Kind::PutS => todo!(),
-                    Kind::GetS => todo!(),
-                }
+                Code::AddReg    => self.add_reg(inst),
+                Code::AddImm    => self.add_imm(inst),
+                Code::AddRegSet => self.add_reg_set(inst),
+                Code::AddImmSet => self.add_imm_set(inst),
 
-                Code::Ret => {
-                    self.reg[Self::SP] -= 2;
-                    self.ip = self.get16(self.reg[Self::SP]);
-                }
-                
-                Code::Jmp => match (inst.bit_a(), inst.bit_b()) {
-                    (false, false) => self.jmp_reg(inst),
-                    (true , false) => self.jmp_imm(inst),
-                    (false, true ) => self.jmp_reg_save(inst),
-                    (true , true ) => self.jmp_imm_save(inst),
-                }
+                Code::AdcReg    => self.adc_reg(inst),
+                Code::AdcImm    => self.adc_imm(inst),
+                Code::AdcRegSet => self.adc_reg_set(inst),
+                Code::AdcImmSet => self.adc_imm_set(inst),
 
-                Code::Mov => match inst.bit_a() {
-                    true  => self.reg[inst.reg_a()] = inst.imm12(),
-                    false => self.reg[inst.reg_a()] = self.reg[inst.reg_b()],
-                }
-                
-                Code::Ldr => match (inst.bit_a(), inst.bit_b(), inst.bit_c(), inst.bit_d()) {
-                    (false, false, false, _    ) => self.ldr_reg_pos_u16(inst),
-                    (false, true , false, _    ) => self.ldr_reg_neg_u16(inst),
-                    (false, false, true , false) => self.ldr_reg_pos_u8(inst),
-                    (false, false, true , true ) => self.ldr_reg_pos_i8(inst),
-                    (false, true , true , false) => self.ldr_reg_neg_u8(inst),
-                    (false, true , true , true ) => self.ldr_reg_neg_i8(inst),
-                    (true , false, false, _    ) => self.ldr_imm_pos_u16(inst),
-                    (true , true , false, _    ) => self.ldr_imm_neg_u16(inst),
-                    (true , false, true , false) => self.ldr_imm_pos_u8(inst),
-                    (true , false, true , true ) => self.ldr_imm_pos_i8(inst),
-                    (true , true , true , false) => self.ldr_imm_neg_u8(inst),
-                    (true , true , true , true ) => self.ldr_imm_neg_i8(inst),
-                }
+                Code::SubReg    => self.sub_reg(inst),
+                Code::SubImm    => self.sub_imm(inst),
+                Code::SubRegSet => self.sub_reg_set(inst),
+                Code::SubImmSet => self.sub_imm_set(inst),
 
-                Code::Str => match (inst.bit_a(), inst.bit_b(), inst.bit_c()) {
-                    (false, false, false) => self.str_reg_pos_u16(inst),
-                    (false, true , false) => self.str_reg_neg_u16(inst),
-                    (false, false, true ) => self.str_reg_pos_u8(inst),
-                    (false, true , true ) => self.str_reg_neg_u8(inst),
-                    (true , false, false) => self.str_imm_pos_u16(inst),
-                    (true , true , false) => self.str_imm_neg_u16(inst),
-                    (true , false, true ) => self.str_imm_pos_u8(inst),
-                    (true , true , true ) => self.str_imm_neg_u8(inst),
-                }
-            
-                Code::Add => match inst.bit_a() {
-                    true  => self.add_imm(inst),
-                    false => self.add_reg(inst),
-                }
+                Code::SbcReg    => self.sbc_reg(inst),
+                Code::SbcImm    => self.sbc_imm(inst),
+                Code::SbcRegSet => self.sbc_reg_set(inst),
+                Code::SbcImmSet => self.sbc_imm_set(inst),
 
-                Code::Sub => match inst.bit_a() {
-                    true  => self.sub_imm(inst),
-                    false => self.sub_reg(inst),
-                }
+                Code::MulReg    => self.mul_reg(inst),
+                Code::MulImm    => self.mul_imm(inst),
+                Code::MulRegSet => self.mul_reg_set(inst),
+                Code::MulImmSet => self.mul_imm_set(inst),
 
-                Code::And => match inst.bit_a() {
-                    true  => self.and_imm(inst),
-                    false => self.and_reg(inst),
-                }
+                Code::MlsReg    => self.mls_reg(inst),
+                Code::MlsImm    => self.mls_imm(inst),
+                Code::MlsRegSet => self.mls_reg_set(inst),
+                Code::MlsImmSet => self.mls_imm_set(inst),
 
-                Code::Orr => match inst.bit_a() {
-                    true  => self.orr_imm(inst),
-                    false => self.orr_reg(inst),
-                }
+                Code::DivReg    => self.div_reg(inst),
+                Code::DivImm    => self.div_imm(inst),
+                Code::DivRegSet => self.div_reg_set(inst),
+                Code::DivImmSet => self.div_imm_set(inst),
 
-                Code::Xor => match inst.bit_a() {
-                    true  => self.xor_imm(inst),
-                    false => self.xor_reg(inst),
-                }
+                Code::DvsReg    => self.dvs_reg(inst),
+                Code::DvsImm    => self.dvs_imm(inst),
+                Code::DvsRegSet => self.dvs_reg_set(inst),
+                Code::DvsImmSet => self.dvs_imm_set(inst),
 
-                Code::Mul => match (inst.bit_a(), inst.bit_b()) {
-                    (false, false) => self.mul_reg_u16(inst),
-                    (false, true)  => self.mul_reg_i16(inst),
-                    (true, false)  => self.mul_imm_u16(inst),
-                    (true, true)   => self.mul_imm_i16(inst),
-                }
-                
-                Code::Div => match (inst.bit_a(), inst.bit_b()) {
-                    (false, false) => self.div_reg_u16(inst),
-                    (false, true)  => self.div_reg_i16(inst),
-                    (true, false)  => self.div_imm_u16(inst),
-                    (true, true)   => self.div_imm_i16(inst),
-                }
+                Code::AndReg    => self.and_reg(inst),
+                Code::AndImm    => self.and_imm(inst),
+                Code::AndRegSet => self.and_reg_set(inst),
+                Code::AndImmSet => self.and_imm_set(inst),
+
+                Code::AnxReg    => self.anx_reg(inst),
+                Code::AnxImm    => self.anx_imm(inst),
+                Code::AnxRegSet => self.anx_reg_set(inst),
+                Code::AnxImmSet => self.anx_imm_set(inst),
+
+                Code::OrrReg    => self.orr_reg(inst),
+                Code::OrrImm    => self.orr_imm(inst),
+                Code::OrrRegSet => self.orr_reg_set(inst),
+                Code::OrrImmSet => self.orr_imm_set(inst),
+
+                Code::OrxReg    => self.orx_reg(inst),
+                Code::OrxImm    => self.orx_imm(inst),
+                Code::OrxRegSet => self.orx_reg_set(inst),
+                Code::OrxImmSet => self.orx_imm_set(inst),
+
+                Code::XorReg    => self.xor_reg(inst),
+                Code::XorImm    => self.xor_imm(inst),
+                Code::XorRegSet => self.xor_reg_set(inst),
+                Code::XorImmSet => self.xor_imm_set(inst),
+
+                Code::XrxReg    => self.xrx_reg(inst),
+                Code::XrxImm    => self.xrx_imm(inst),
+                Code::XrxRegSet => self.xrx_reg_set(inst),
+                Code::XrxImmSet => self.xrx_imm_set(inst),
+
+                Code::BxtReg    => self.bxt_reg(inst),
+                Code::BxtImm    => self.bxt_imm(inst),
+                Code::BxtRegSet => self.bxt_reg_set(inst),
+                Code::BxtImmSet => self.bxt_imm_set(inst),
+
+                Code::LdhRegAddPos => self.ldh_reg_add_pos(inst),
+                Code::LdhRegSubPos => self.ldh_reg_sub_pos(inst),
+                Code::LdhImmAddPos => self.ldh_imm_add_pos(inst),
+                Code::LdhImmSubPos => self.ldh_imm_sub_pos(inst),
+
+                Code::LdbRegAddPos => self.ldb_reg_add_pos(inst),
+                Code::LdbRegAddNeg => self.ldb_reg_add_neg(inst),
+                Code::LdbRegSubPos => self.ldb_reg_sub_pos(inst),
+                Code::LdbRegSubNeg => self.ldb_reg_sub_neg(inst),
+                Code::LdbImmAddPos => self.ldb_imm_add_pos(inst),
+                Code::LdbImmAddNeg => self.ldb_imm_add_neg(inst),
+                Code::LdbImmSubPos => self.ldb_imm_sub_pos(inst),
+                Code::LdbImmSubNeg => self.ldb_imm_sub_neg(inst),
+
+                Code::SthRegAdd => self.sth_reg_add(inst),
+                Code::SthRegSub => self.sth_reg_sub(inst),
+                Code::SthImmAdd => self.sth_imm_add(inst),
+                Code::SthImmSub => self.sth_imm_sub(inst),
+
+                Code::StbRegAdd => self.stb_reg_add(inst),
+                Code::StbRegSub => self.stb_reg_sub(inst),
+                Code::StbImmAdd => self.stb_imm_add(inst),
+                Code::StbImmSub => self.stb_imm_sub(inst),
+
+                Code::PshRegAdd    => self.psh_reg_add(inst),
+                Code::PshRegSub    => self.psh_reg_sub(inst),
+                Code::PshImmAdd    => self.psh_imm_add(inst),
+                Code::PshImmSub    => self.psh_imm_sub(inst),
+                Code::PshRegAddSet => self.psh_reg_add_set(inst),
+                Code::PshRegSubSet => self.psh_reg_sub_set(inst),
+                Code::PshImmAddSet => self.psh_imm_add_set(inst),
+                Code::PshImmSubSet => self.psh_imm_sub_set(inst),
+
+                Code::PopRegAdd    => self.pop_reg_add(inst),
+                Code::PopRegSub    => self.pop_reg_sub(inst),
+                Code::PopImmAdd    => self.pop_imm_add(inst),
+                Code::PopImmSub    => self.pop_imm_sub(inst),
+                Code::PopRegAddSet => self.pop_reg_add_set(inst),
+                Code::PopRegSubSet => self.pop_reg_sub_set(inst),
+                Code::PopImmAddSet => self.pop_imm_add_set(inst),
+                Code::PopImmSubSet => self.pop_imm_sub_set(inst),
+
+                Code::JmpRegAdd => self.jmp_reg_add(inst),
+                Code::JmpRegSub => self.jmp_reg_sub(inst),
+                Code::JmpImmAdd => self.jmp_imm_add(inst),
+                Code::JmpImmSub => self.jmp_imm_sub(inst),
+
+                Code::JmlRegAdd => self.jml_reg_add(inst),
+                Code::JmlRegSub => self.jml_reg_sub(inst),
+                Code::JmlImmAdd => self.jml_imm_add(inst),
+                Code::JmlImmSub => self.jml_imm_sub(inst),
             }
         }
     }
